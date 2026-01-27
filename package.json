@@ -1,0 +1,22 @@
+{
+  "name": "listacompras",
+  "version": "1.0.0",
+  "description": "sistema de listagem de compras",
+  "license": "ISC",
+  "author": "Mateus Kaufmann",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "ejs": "^4.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "formidable": "^3.5.4",
+    "md5": "^2.3.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.16.1",
+    "nodemon": "^3.1.11"
+  }
+}
