@@ -1,5 +1,14 @@
 //==== MINHAS FUNÇÕES=======//
 
+self.addEventListener('install', (event) => {
+    console.log('Service Worker instalado!');
+});
+
+self.addEventListener('fetch', (event) => {
+    // Isso permite que o app funcione offline no futuro se você configurar o cache
+    event.respondWith(fetch(event.request));
+});
+
 function calcularConsumoMedio(compras) {
     if (!compras || compras.length < 2) return null; // pouco histórico
 
@@ -54,7 +63,7 @@ function setTheme(theme) {
 function updateThemeButtons(theme) {
     const snowBtns = document.querySelectorAll('.theme-btn-snow');
     const carbonBtns = document.querySelectorAll('.theme-btn-carbon');
-    
+
     snowBtns.forEach(btn => {
         btn.classList.toggle('active', theme === 'snow');
     });
@@ -69,7 +78,7 @@ function setDateRange(range, btn) {
     const btns = document.querySelectorAll('.date-btn');
     btns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    
+
     // Update charts based on range
     updateCharts(range);
 }
@@ -80,12 +89,12 @@ function updateCharts(range) {
     bars.forEach(bar => {
         const currentHeight = parseInt(bar.style.height);
         let multiplier = 1;
-        
+
         if (range === '7d') multiplier = 0.7;
         if (range === '30d') multiplier = 1;
         if (range === '90d') multiplier = 1.2;
         if (range === '12m') multiplier = 1.4;
-        
+
         // Random variation
         const variation = 0.8 + Math.random() * 0.4;
         bar.style.height = (currentHeight * multiplier * variation) + 'px';
@@ -98,11 +107,11 @@ function selectMessage(el, index) {
     document.querySelectorAll('.message-item').forEach(item => {
         item.classList.remove('active');
     });
-    
+
     // Add active to selected
     el.classList.add('active');
     el.classList.remove('unread');
-    
+
     // Update message view
     updateMessageView(index);
 }
@@ -153,9 +162,9 @@ function updateMessageView(index) {
                    <p>Best,<br>HR Team</p>`
         }
     ];
-    
+
     const msg = messages[index] || messages[0];
-    
+
     document.querySelector('.message-view-subject').textContent = msg.subject;
     document.querySelector('.message-view-sender-name').textContent = msg.sender;
     document.querySelector('.message-view-sender-email').textContent = msg.email;
@@ -167,19 +176,19 @@ function updateMessageView(index) {
 function initKanban() {
     const cards = document.querySelectorAll('.kanban-card');
     const columns = document.querySelectorAll('.kanban-cards');
-    
+
     cards.forEach(card => {
         card.setAttribute('draggable', true);
-        
+
         card.addEventListener('dragstart', (e) => {
             card.classList.add('dragging');
         });
-        
+
         card.addEventListener('dragend', (e) => {
             card.classList.remove('dragging');
         });
     });
-    
+
     columns.forEach(column => {
         column.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -193,7 +202,7 @@ function initKanban() {
 function initToggles() {
     const toggles = document.querySelectorAll('.toggle input');
     toggles.forEach(toggle => {
-        toggle.addEventListener('change', function() {
+        toggle.addEventListener('change', function () {
             console.log(`${this.id} is now ${this.checked ? 'enabled' : 'disabled'}`);
         });
     });
@@ -203,7 +212,7 @@ function initToggles() {
 function toggleMobileMenu() {
     const menu = document.querySelector('.mobile-menu');
     const overlay = document.querySelector('.mobile-menu-overlay');
-    
+
     if (menu && overlay) {
         menu.classList.toggle('active');
         overlay.classList.toggle('active');
@@ -214,7 +223,7 @@ function toggleMobileMenu() {
 function closeMobileMenu() {
     const menu = document.querySelector('.mobile-menu');
     const overlay = document.querySelector('.mobile-menu-overlay');
-    
+
     if (menu && overlay) {
         menu.classList.remove('active');
         overlay.classList.remove('active');
@@ -223,18 +232,18 @@ function closeMobileMenu() {
 }
 
 // ===== Initialize =====
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initTheme();
     setGreeting();
-    
+
     if (document.querySelector('.kanban-board')) {
         initKanban();
     }
-    
+
     if (document.querySelector('.toggle')) {
         initToggles();
     }
-    
+
     // Close mobile menu on overlay click
     const overlay = document.querySelector('.mobile-menu-overlay');
     if (overlay) {
