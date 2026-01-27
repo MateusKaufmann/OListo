@@ -1,0 +1,18 @@
+{
+  "name": "Listo Listas",
+  "short_name": "Listo",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "public/logos/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "public/logos/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
