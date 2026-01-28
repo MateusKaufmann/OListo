@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listo - Dashboard</title>
+  <script>
+    // Prevent flash of white in dark mode - runs before CSS/page render
+    if (localStorage.getItem('daynight-theme') === 'carbon') {
+      document.documentElement.classList.add('carbon');
+    }
+  </script>
+  <%- include('external/addons'); %>
+  <!--
+
+TemplateMo 608 DayNight Admin
+
+https://templatemo.com/tm-608-daynight-admin
+
+-->
+</head>
+
+<body>
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu-overlay"></div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu">
+    <div class="mobile-menu-header">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+          </svg>
+        </div>
+        ¡Listo!
+      </a>
+      <button class="mobile-menu-close" onclick="closeMobileMenu()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <nav class="mobile-menu-nav">
+      <div class="nav-item">
+        <a href="index.html" class="nav-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+          Dashboard
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="itens" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+          Meus itens
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="analytics.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Iniciar Assistente
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="analytics.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          Estou no mercado
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="settings.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          Configurações
+        </a>
+      </div>
+    </nav>
+    <div class="mobile-menu-footer">
+      <a href="login.html" class="mobile-logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        Logout
+      </a>
+      <div class="theme-toggle">
+        <button class="theme-btn theme-btn-snow active" onclick="setTheme('snow')" title="Snow Edition">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </button>
+        <button class="theme-btn theme-btn-carbon" onclick="setTheme('carbon')" title="Carbon Edition">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="nav-container">
+        <div class="nav-left">
+          <a href="index.html" class="logo">
+            <div class="logo-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+            </div>
+            ¡Listo!
+          </a>
+          <div class="nav-menu">
+            <div class="nav-item">
+              <a href="index.html" class="nav-link active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Dashboard
+              </a>
+            </div>
+            <div class="nav-item">
+              <a href="itens" class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                Meus itens
+              </a>
+            </div>
+            <div class="nav-item">
+              <a href="analytics.html" class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+                Iniciar Assistente
+              </a>
+            </div>
+            <div class="nav-item">
+              <a href="analytics.html" class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                Estou no mercado
+              </a>
+            </div>
+            <div class="nav-item">
+              <a href="settings.html" class="nav-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Configurações
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-right">
+          <div class="theme-toggle">
+          </div>
+          <button class="user-menu">
+            <div class="user-avatar">:)</div>
+            <span class="user-name">
+              <%= data.dados_usuario.nome%>
+            </span>
+          </button>
+          <a href="login.html" class="btn-logout" title="Logout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </a>
+          <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="greeting" id="greeting">Olá, <%= data.dados_usuario.nome%>!</h1>
+        <p class="greeting-sub">Aqui está o relatório de sua casa.</p>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Itens que precisam de atenção</div>
+          <div class="stat-value"><%= contagemAtencao %></div>
+
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Itens regulares</div>
+          <div class="stat-value">
+            <%= itensOk %>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Dias desde a última compra</div>
+          <div class="stat-value"><%= diasDesdeUltimaCompra %></div>
+
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Próxima ida ao mercado em</div>
+          <div class="stat-value"><%= proximaIdaMercado %></div>
+
+        </div>
+      </div>
+
+      <!-- Two Column Layout -->
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title text-danger">Alerta crítico</h3>
+            <p class="card-subtitle">Itens consumíveis com término próximo</p>
+          </div>
+
+          <div class="card-scroll">
+            <div class="activity-feed">
+
+              <% if (criticos.length===0) { %>
+              <p style="text-align:center; color:#6c757d; padding: 20px;">
+                Tudo sob controle por aqui! 🎉
+              </p>
+              <% } %>
+
+              <% /* Note que aqui não usamos mais 'const criticos = ...' , apenas o
+                                                forEach direto */ %>
+              <% criticos.forEach(item=> {
+                                                    /* 1. Lógica do ícone (mantemos aqui dentro porque muda para cada
+                                                    item)*/
+                                                    let svgIcon = '';
+                                                    switch(item.categoria) {
+                case 'Higiene':
+                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12 20.73 6.96" /><line x1="12" y1="22" x2="12" y2="12" /></svg>';
+                    break;
+                case 'Alimentos':
+                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /><path d="M9 4c1 1 2 2 3 3" /></svg>';
+                    break;
+                case 'Limpeza':
+                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6" /><path d="M10 3v4" /><path d="M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /><path d="M16 5l3 2" /></svg>';
+                    break;
+                default:
+                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>';
+            }
+
+                                                    // 2. Tratamento da data da última compra (que vem do seu novo DAO)
+                                                    let dataCompraStr = 'N/A';
+                                                    if (item.data_ultima_compra) {
+                                                    const [ano, mes, dia] = item.data_ultima_compra.split('-');
+                                                    dataCompraStr = `${dia}/${mes}/${ano}`;
+                                                    }
+
+                                                    const iconColor = item.percentualAtual <= 10 ? 'red' : 'blue' ; %>
+              <div class="activity-item">
+                <div class="activity-icon <%= iconColor %>">
+                  <%- svgIcon %>
+                </div>
+                <div class="activity-content">
+                  <p class="activity-text">
+                    <strong>
+                      <%= item.nome %>
+                    </strong> pode estar acabando!
+                    (<%= item.estoqueEstimado %>
+                    <%= item.unidade_medida %> de <%=
+                                                                                item.quantidade_ideal %>
+                    <%= item.unidade_medida %>)
+                  </p>
+                  <span class="activity-time">
+                    Previsão de término <strong>
+                      <%= item.previsaoFim %>
+                    </strong>.
+                    Última compra em <strong>
+                      <%= dataCompraStr %>
+                    </strong>
+                  </span>
+                </div>
+              </div>
+              <% }) %>
+
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title text-warning">A revisar</h3>
+            <p class="card-subtitle">Itens de consumo irregular abaixo do ideal</p>
+          </div>
+
+          <div class="card-scroll">
+            <div class="activity-feed">
+              <% 
+                // Filtramos aqui apenas os itens que NÃO são mensuráveis e estão abaixo do alerta
+                const irregulares = data.estoque.filter(i => 
+                    i.percentualAtual <= i.percentual_alerta && 
+                    i.consumo_mensuravel === 0
+                );
+            %>
+
+              <% if (irregulares.length === 0) { %>
+              <p style="text-align:center; color:#6c757d; padding: 20px;">
+                Nenhum item irregular precisando de atenção! ✨
+              </p>
+              <% } %>
+
+              <% irregulares.forEach(item => { 
+                // Lógica de ícone idêntica para manter o padrão
+                let svgIcon = '';
+                switch(item.categoria) {
+                    case 'Higiene':
+                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12 20.73 6.96" /><line x1="12" y1="22" x2="12" y2="12" /></svg>';
+                        break;
+                    case 'Alimentos':
+                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /><path d="M9 4c1 1 2 2 3 3" /></svg>';
+                        break;
+                    case 'Limpeza':
+                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6" /><path d="M10 3v4" /><path d="M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /><path d="M16 5l3 2" /></svg>';
+                        break;
+                    default:
+                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>';
+                }
+
+                // Cores por categoria conforme combinamos
+                let iconColor = 'blue';
+                switch(item.categoria) {
+                    case 'Alimentos': iconColor = 'yellow'; break;
+                    case 'Limpeza': iconColor = 'green'; break;
+                    case 'Higiene': iconColor = 'pink'; break;
+                }
+
+                let dataCompraStr = item.data_ultima_compra ? item.data_ultima_compra.split('-').reverse().join('/') : 'N/A';
+            %>
+              <div class="activity-item">
+                <div class="activity-icon <%= iconColor %>">
+                  <%- svgIcon %>
+                </div>
+                <div class="activity-content">
+                  <p class="activity-text">
+                    <strong><%= item.nome %></strong> está abaixo do ideal!
+                    (<%= item.percentualAtual %>% em estoque)
+                  </p>
+                  <span class="activity-time">
+                    Consumo irregular (sem previsão).
+                    Última compra em <strong><%= dataCompraStr %></strong>
+                  </span>
+                </div>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="two-col" style="margin-top: 1.5rem;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title text-warning">A revisar (Inativos)</h3>
+            <p class="card-subtitle">Itens sem atualização há +14 dias</p>
+          </div>
+
+          <div class="card-scroll">
+            <div class="activity-feed">
+              <% if (itensInativos.length === 0) { %>
+              <p style="text-align:center; color:#6c757d; padding: 20px;">
+                Todos os itens foram conferidos recentemente! 👍
+              </p>
+              <% } %>
+
+              <% itensInativos.forEach(item => { 
+                // 1. Busca a data com segurança
+                let dataExibicao = 'Nunca revisado';
+                
+                if (item.registros && item.registros.length > 0) {
+                    const ultimaData = item.registros[item.registros.length - 1].data_registro;
+                    if (ultimaData) {
+                        dataExibicao = ultimaData.split('-').reverse().join('/');
+                    }
+                }
+
+                // 2. Cores das categorias (mantendo o seu padrão)
+                let iconColor = 'blue';
+                switch(item.categoria) {
+                    case 'Alimentos': iconColor = 'yellow'; break;
+                    case 'Limpeza': iconColor = 'green'; break;
+                    case 'Higiene': iconColor = 'pink'; break;
+                }
+            %>
+              <div class="activity-item">
+                <div class="activity-icon <%= iconColor %>">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div class="activity-content">
+                  <p class="activity-text">
+                    <strong><%= item.nome %></strong> precisa de conferência.
+                  </p>
+                  <span class="activity-time">
+                    Última atualização em: <strong><%= dataExibicao %></strong><br>
+                    Status atual: <strong><%= item.percentualAtual %>%</strong> em estoque.
+                  </span>
+                </div>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2026 DayNight Admin. Designed by <a href="https://www.templatemo.com" target="_blank" rel="nofollow">TemplateMo</a></p>
+    </footer>
+  </div>
+
+  <script src="templatemo-daynight-script.js"></script>
+</body>
+
+</html>

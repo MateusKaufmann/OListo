@@ -1,49 +1,68 @@
 <% 
+    // ==========================================
+    // 1. FILTROS E CONTAGENS BÁSICAS
+    // ==========================================
+    const totalItens = data.estoque.length;
+    
+    // Itens Críticos (Abaixo do alerta e mensuráveis)
+    const criticos = data.estoque.filter(i => 
+        i.percentualAtual !== null && 
+        i.percentualAtual <= i.percentual_alerta && 
+        i.consumo_mensuravel === 1
+    );
 
-data.estoque.forEach(i => {
-        if(i.nome.toLowerCase().includes('inseticida')) {
-            console.log('--- DEBUG INSETICIDA ---');
-            console.log('Nome:', i.nome);
-            console.log('Mensurável:', i.consumo_mensuravel);
-            console.log('Qtd Registros:', i.registros ? i.registros.length : '0');
-            if(i.registros && i.registros.length > 0) {
-               console.log('Data Último Registro:', i.registros[i.registros.length - 1].data_registro);
-            }
-        }
-    });
-
-
-const criticos=data.estoque.filter(i=> i.percentualAtual !== null &&
-    i.percentualAtual <= i.percentual_alerta && i.consumo_mensuravel===1); const itensOk=data.estoque.filter(i=>
-        i.percentualAtual !== null &&
+    // Itens Saudáveis
+    const itensOk = data.estoque.filter(i => 
+        i.percentualAtual !== null && 
         i.percentualAtual > i.percentual_alerta
-        ).length;
+    ).length;
 
-        const totalItens = data.estoque.length;
+    // Itens que precisam de atenção (Todos abaixo do alerta)
+    const contagemAtencao = data.estoque.filter(i => 
+        i.percentualAtual !== null && 
+        i.percentualAtual <= i.percentual_alerta
+    ).length;
 
+    // ==========================================
+    // 2. CÁLCULOS DE SAÚDE (PORCENTAGENS)
+    // ==========================================
+    const percAtencao = totalItens > 0 ? Math.round((contagemAtencao / totalItens) * 100) : 0;
+    const percOk = totalItens > 0 ? Math.round((itensOk / totalItens) * 100) : 0;
 
-        // Pegamos todas as datas de última compra, removemos as nulas e transformamos em objetos Date
+    // ==========================================
+    // 3. LÓGICA DE ÚLTIMA COMPRA
+    // ==========================================
     const todasAsDatas = data.estoque
         .map(i => i.data_ultima_compra)
         .filter(d => d !== null)
-        .map(d => new Date(d + 'T00:00:00')); // T00:00:00 evita erros de fuso
+        .map(d => new Date(d + 'T00:00:00'));
 
     let diasDesdeUltimaCompra = "---";
+    let itensUltimaCompra = 0;
 
     if (todasAsDatas.length > 0) {
-        // Encontramos a data mais recente (a maior)
-        const ultimaDataGeral = new Date(Math.max(...todasAsDatas));
-        const hoje = new Date();
+        const ultimaDataObjeto = new Date(Math.max(...todasAsDatas));
+        const hojeRef = new Date();
+        hojeRef.setHours(0,0,0,0);
         
-        // Calculamos a diferença em milissegundos e convertemos para dias
-        const diffTempo = Math.abs(hoje - ultimaDataGeral);
+        const diffTempo = Math.abs(hojeRef - ultimaDataObjeto);
         diasDesdeUltimaCompra = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+
+        // Contar quantos itens foram comprados exatamente nessa última data
+        const ultimaDataStr = ultimaDataObjeto.toISOString().split('T')[0];
+        data.estoque.forEach(item => {
+            const teveCompra = item.registros.some(r => r.data === ultimaDataStr && Number(r.comprada) > 0);
+            if (teveCompra) itensUltimaCompra++;
+        });
     }
 
-let proximaIdaMercado = "Sem previsão";
-    
-    // Filtramos apenas itens que possuem uma data de previsão válida
-    // (Lembrando que previsaoFim está no formato DD/MM/YYYY)
+    // ==========================================
+    // 4. PREVISÃO DE DIAS E GASTOS (PRÓXIMA COMPRA)
+    // ==========================================
+    let textoDiasMercado = "Sem previsão";
+    let gastoPrevisto = 0;
+
+    // Cálculo dos Dias
     const datasPrevisao = criticos
         .map(i => {
             if (!i.previsaoFim || i.previsaoFim === "Sem previsão") return null;
@@ -53,516 +72,623 @@ let proximaIdaMercado = "Sem previsão";
         .filter(d => d !== null);
 
     if (datasPrevisao.length > 0) {
-        // Encontramos a data mais próxima (a menor de todas)
         const dataMaisUrgente = new Date(Math.min(...datasPrevisao));
-        
-        // Formatamos de volta para DD/MM
-        const dia = String(dataMaisUrgente.getDate()).padStart(2, '0');
-        const mes = String(dataMaisUrgente.getMonth() + 1).padStart(2, '0');
-        proximaIdaMercado = `${dia}/${mes}`;
+        const hojeCalc = new Date();
+        hojeCalc.setHours(0,0,0,0);
+        const diffMs = dataMaisUrgente - hojeCalc;
+        const dias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        if (dias > 1) textoDiasMercado = `Faltam ${dias} dias`;
+        else if (dias === 1) textoDiasMercado = "Falta 1 dia";
+        else if (dias === 0) textoDiasMercado = "É hoje!";
+        else textoDiasMercado = "Atrasado";
     }
 
-
-    // Filtra todos os itens que estão abaixo do seu limite de alerta personalizado
-    const listaAtencao = data.estoque.filter(i => 
-        i.percentualAtual !== null && 
-        i.percentualAtual <= i.percentual_alerta
-    );
-
-    // Esta é a variável que vamos usar no card
-    const contagemAtencao = listaAtencao.length;
-//NOVO NOVO NOVO
-   const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    const itensInativos = data.estoque.filter(item => {
-        // 1. Apenas consumo irregular
-        if (Number(item.consumo_mensuravel) !== 0) return false;
-
-        // 2. Se não tem registros, precisa revisar
-        if (!item.registros || item.registros.length === 0) return true;
-
-        // 3. Pega a data usando o nome correto: 'data'
-        const ultimoMov = item.registros[item.registros.length - 1].data;
-        if (!ultimoMov) return true;
-
-        const dataRef = new Date(ultimoMov + 'T12:00:00');
-        dataRef.setHours(0, 0, 0, 0);
-
-        const diffDias = Math.floor((hoje - dataRef) / (1000 * 60 * 60 * 24));
+    // Cálculo do Gasto Estimado (Baseado em preço médio)
+    criticos.forEach(item => {
+        const compras = item.registros.filter(r => Number(r.comprada) > 0 && Number(r.preco) > 0);
+        const precoMedio = compras.length > 0 
+            ? compras.reduce((acc, cur) => acc + Number(cur.preco), 0) / compras.length 
+            : 0;
         
-        return diffDias >= 14;
-   
-    }); // Fechamento do filter
-   
-        %>
-        <!DOCTYPE html>
-        <html lang="en">
+        const faltaParaIdeal = Math.max(0, item.quantidade_ideal - item.estoqueEstimado);
+        gastoPrevisto += (faltaParaIdeal * precoMedio);
+    });
 
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Listo - Dashboard</title>
-            <script>
-                // Prevent flash of white in dark mode - runs before CSS/page render
-                if (localStorage.getItem('daynight-theme') === 'carbon') {
-                    document.documentElement.classList.add('carbon');
-                }
-            </script>
-            <%- include('external/addons'); %>
-                <!--
+    // 1. Coletar todas as datas de todos os registros de todos os itens
+    let todasAsDatasRegistros = [];
+    data.estoque.forEach(item => {
+        item.registros.forEach(reg => {
+            todasAsDatasRegistros.push(reg.data);
+        });
+    });
 
-TemplateMo 608 DayNight Admin
+    // 2. Obter as 2 datas únicas mais recentes (ordenadas do mais novo para o mais antigo)
+    const datasUnicas = [...new Set(todasAsDatasRegistros)]
+        .sort((a, b) => new Date(b) - new Date(a))
+        .slice(0, 2);
 
-https://templatemo.com/tm-608-daynight-admin
+    // 3. Criar uma lista plana de eventos que ocorreram nessas datas para facilitar o loop
+    let eventosRecentes = [];
+    data.estoque.forEach(item => {
+        item.registros.forEach(reg => {
+            if (datasUnicas.includes(reg.data)) {
+                eventosRecentes.push({
+                    nome: item.nome,
+                    unidade: item.unidade_medida,
+                    data: reg.data,
+                    comprada: Number(reg.comprada),
+                    encontrada: Number(reg.encontrada)
+                });
+            }
+        });
+    });
+
+    // Ordenar os eventos por data (mais recente primeiro)
+    eventosRecentes.sort((a, b) => new Date(b.data) - new Date(a.data));
+%>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlassAdmin Dashboard - 3D Glassmorphism Dashboard</title>
+  <meta name="description" content="3D Glassmorphism Dashboard Template by TemplateMo">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <%- include('external/addons'); %>
+  <!--
+
+TemplateMo 607 Glass Admin
+
+https://templatemo.com/tm-607-glass-admin
 
 -->
-        </head>
+</head>
 
-        <body>
-            <!-- Mobile Menu Overlay -->
-            <div class="mobile-menu-overlay"></div>
+<body>
+  <!-- Animated Background -->
+  <div class="background"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
 
-            <!-- Mobile Menu -->
-            <div class="mobile-menu">
-                <div class="mobile-menu-header">
-                    <a href="index.html" class="logo">
-                        <div class="logo-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                            </svg>
-                        </div>
-                        ¡Listo!
-                    </a>
-                    <button class="mobile-menu-close" onclick="closeMobileMenu()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                    </button>
-                </div>
-                <nav class="mobile-menu-nav">
-                    <div class="nav-item">
-                                    <a href="index.html" class="nav-link active">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="3" width="7" height="7" rx="1" />
-                                            <rect x="14" y="3" width="7" height="7" rx="1" />
-                                            <rect x="3" y="14" width="7" height="7" rx="1" />
-                                            <rect x="14" y="14" width="7" height="7" rx="1" />
-                                        </svg>
-                                        Dashboard
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="itens" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path
-                                                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                        </svg>
-                                        Meus itens
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="analytics.html" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="18" y1="20" x2="18" y2="10" />
-                                            <line x1="12" y1="20" x2="12" y2="4" />
-                                            <line x1="6" y1="20" x2="6" y2="14" />
-                                        </svg>
-                                        Iniciar Assistente
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="analytics.html" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="9" cy="21" r="1"></circle>
-    <circle cx="20" cy="21" r="1"></circle>
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-</svg>
-                                        Estou no mercado
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="settings.html" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="3" />
-                                            <path
-                                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                                        </svg>
-                                        Configurações
-                                    </a>
-                                </div>
-                </nav>
-                <div class="mobile-menu-footer">
-                    <a href="login.html" class="mobile-logout-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <polyline points="16 17 21 12 16 7" />
-                            <line x1="21" y1="12" x2="9" y2="12" />
-                        </svg>
-                        Logout
-                    </a>
-                    <div class="theme-toggle">
-                        <button class="theme-btn theme-btn-snow active" onclick="setTheme('snow')" title="Snow Edition">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="5" />
-                                <line x1="12" y1="1" x2="12" y2="3" />
-                                <line x1="12" y1="21" x2="12" y2="23" />
-                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                                <line x1="1" y1="12" x2="3" y2="12" />
-                                <line x1="21" y1="12" x2="23" y2="12" />
-                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                            </svg>
-                        </button>
-                        <button class="theme-btn theme-btn-carbon" onclick="setTheme('carbon')" title="Carbon Edition">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">¡L!</div>
+        <span class="logo-text">Listo</span>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-section">
+          <span class="nav-section-title">Main Menu</span>
+          <ul>
+            <li class="nav-item">
+              <a href="index.html" class="nav-link active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="analytics.html" class="nav-link">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+                Analytics
+                <span class="nav-badge">New</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="users.html" class="nav-link">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                Users
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="settings.html" class="nav-link">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Settings
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <li class="nav-section">
+          <span class="nav-section-title">Account</span>
+          <ul>
+            <li class="nav-item">
+              <a href="login.html" class="nav-link">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Logout
+              </a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="user-avatar"><%= data.dados_usuario.nome.charAt(0).toUpperCase() %></div>
+          <div class="user-info">
+            <div class="user-name"><%= data.dados_usuario.nome%></div>
+            <div class="user-role">Administrador</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <nav class="navbar">
+        <h1 class="page-title">Minha casa</h1>
+        <div class="navbar-right">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input type="text" class="search-input" placeholder="Search anything...">
+          </div>
+          <button class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span class="notification-dot"></span>
+          </button>
+          <button class="nav-btn" id="theme-toggle" title="Toggle Light/Dark Mode">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2" />
+              <path d="M12 20v2" />
+              <path d="M4.93 4.93l1.41 1.41" />
+              <path d="M17.66 17.66l1.41 1.41" />
+              <path d="M2 12h2" />
+              <path d="M20 12h2" />
+              <path d="M6.34 17.66l-1.41 1.41" />
+              <path d="M19.07 4.93l-1.41 1.41" />
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Stats Cards -->
+      <section class="stats-grid">
+
+        <div class="glass-card glass-card-3d stat-card">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <h3>Itens que precisam atenção</h3>
+              <div class="stat-value"><%= contagemAtencao %></div>
+              <span class="stat-change <%= percAtencao > 40 ? 'negative' : 'positive' %>">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                </svg>
+                <%= percAtencao %>% do total de itens
+              </span>
             </div>
+            <div class="stat-icon cyan">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-            <div class="app-container">
-                <!-- Top Navigation -->
-                <nav class="top-nav">
-                    <div class="nav-container">
-                        <div class="nav-left">
-                            <a href="index.html" class="logo">
-                                <div class="logo-icon">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path
-                                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                    </svg>
-                                </div>
-                                ¡Listo!
-                            </a>
-                            <div class="nav-menu">
-                                <div class="nav-item">
-                                    <a href="index.html" class="nav-link active">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="3" width="7" height="7" rx="1" />
-                                            <rect x="14" y="3" width="7" height="7" rx="1" />
-                                            <rect x="3" y="14" width="7" height="7" rx="1" />
-                                            <rect x="14" y="14" width="7" height="7" rx="1" />
-                                        </svg>
-                                        Dashboard
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="itens" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path
-                                                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                        </svg>
-                                        Meus itens
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="analytics.html" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="18" y1="20" x2="18" y2="10" />
-                                            <line x1="12" y1="20" x2="12" y2="4" />
-                                            <line x1="6" y1="20" x2="6" y2="14" />
-                                        </svg>
-                                        Iniciar Assistente
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="analytics.html" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="9" cy="21" r="1"></circle>
-    <circle cx="20" cy="21" r="1"></circle>
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-</svg>
-                                        Estou no mercado
-                                    </a>
-                                </div>
-                                <div class="nav-item">
-                                    <a href="settings.html" class="nav-link">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="3" />
-                                            <path
-                                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                                        </svg>
-                                        Configurações
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="nav-right">
-                            <div class="theme-toggle">
-                            </div>
-                            <button class="user-menu">
-                                <div class="user-avatar">:)</div>
-                                <span class="user-name">
-                                    <%= data.dados_usuario.nome%>
-                                </span>
-                            </button>
-                            <a href="login.html" class="btn-logout" title="Logout">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                    <polyline points="16 17 21 12 16 7" />
-                                    <line x1="21" y1="12" x2="9" y2="12" />
-                                </svg>
-                            </a>
-                            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="3" y1="12" x2="21" y2="12" />
-                                    <line x1="3" y1="6" x2="21" y2="6" />
-                                    <line x1="3" y1="18" x2="21" y2="18" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </nav>
+        <div class="glass-card glass-card-3d stat-card">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <h3>Itens sob controle</h3>
+              <div class="stat-value"><%= itensOk %></div>
+              <span class="stat-change positive">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                </svg>
+                <%= percOk %>% de saúde global
+              </span>
+            </div>
+            <div class="stat-icon magenta">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-                <!-- Main Content -->
-                <main class="main-content">
-                    <!-- Page Header -->
-                    <div class="page-header">
-                        <h1 class="greeting" id="greeting">Olá, <%= data.dados_usuario.nome%>!</h1>
-                        <p class="greeting-sub">Aqui está o relatório de sua casa.</p>
-                    </div>
+        <div class="glass-card glass-card-3d stat-card">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <h3>Dias desde a última compra</h3>
+              <div class="stat-value"><%= diasDesdeUltimaCompra %></div>
+              <span class="stat-change positive">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+                <%= itensUltimaCompra %> itens repostos
+              </span>
+            </div>
+            <div class="stat-icon purple">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-                    <!-- Stats Grid -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-label">Itens que precisam de atenção</div>
-                            <div class="stat-value"><%= contagemAtencao %></div>
+        <div class="glass-card glass-card-3d stat-card">
+          <div class="stat-card-inner">
+            <div class="stat-info">
+              <h3>Dias até próxima compra</h3>
+              <div class="stat-value"><%= textoDiasMercado %></div>
+              <span class="stat-change pending">
+                Gasto estimado: R$ <%= gastoPrevisto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
+              </span>
+            </div>
+            <div class="stat-icon success">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
 
-                        </div>
+      <!-- Content Grid -->
+      <section class="content-grid">
 
-                        <div class="stat-card">
-                            <div class="stat-label">Itens regulares</div>
-                            <div class="stat-value">
-                                <%= itensOk %>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Dias desde a última compra</div>
-                            <div class="stat-value"><%= diasDesdeUltimaCompra %></div>
 
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Próxima ida ao mercado em</div>
-                            <div class="stat-value"><%= proximaIdaMercado %></div>
+        <!-- Activity Feed -->
+        <div class="glass-card activity-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Críticos</h2>
+              <p class="card-subtitle">Estes itens estão perto de acabar</p>
+            </div>
+          </div>
+          <div class="activity-list">
 
-                        </div>
-                    </div>
-
-                    <!-- Two Column Layout -->
-                    <div class="two-col">
-                        <div class="card">
-                            <div class="card-header">
-                                <h3 class="card-title text-danger">Alerta crítico</h3>
-                                <p class="card-subtitle">Itens consumíveis com término próximo</p>
-                            </div>
-
-                            <div class="card-scroll">
-                                <div class="activity-feed">
-
-                                    <% if (criticos.length===0) { %>
-                                        <p style="text-align:center; color:#6c757d; padding: 20px;">
-                                            Tudo sob controle por aqui! 🎉
-                                        </p>
-                                        <% } %>
-
-                                            <% /* Note que aqui não usamos mais 'const criticos = ...' , apenas o
-                                                forEach direto */ %>
-                                                <% criticos.forEach(item=> {
-                                                    /* 1. Lógica do ícone (mantemos aqui dentro porque muda para cada
-                                                    item)*/
-                                                    let svgIcon = '';
-                                                    switch(item.categoria) {
-                case 'Higiene':
-                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12 20.73 6.96" /><line x1="12" y1="22" x2="12" y2="12" /></svg>';
-                    break;
-                case 'Alimentos':
-                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /><path d="M9 4c1 1 2 2 3 3" /></svg>';
-                    break;
-                case 'Limpeza':
-                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6" /><path d="M10 3v4" /><path d="M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /><path d="M16 5l3 2" /></svg>';
-                    break;
-                default:
-                    svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>';
-            }
-
-                                                    // 2. Tratamento da data da última compra (que vem do seu novo DAO)
-                                                    let dataCompraStr = 'N/A';
-                                                    if (item.data_ultima_compra) {
-                                                    const [ano, mes, dia] = item.data_ultima_compra.split('-');
-                                                    dataCompraStr = `${dia}/${mes}/${ano}`;
-                                                    }
-
-                                                    const iconColor = item.percentualAtual <= 10 ? 'red' : 'blue' ; %>
-                                                        <div class="activity-item">
-                                                            <div class="activity-icon <%= iconColor %>">
-                                                                <%- svgIcon %>
-                                                            </div>
-                                                            <div class="activity-content">
-                                                                <p class="activity-text">
-                                                                    <strong>
-                                                                        <%= item.nome %>
-                                                                    </strong> pode estar acabando!
-                                                                    (<%= item.estoqueEstimado %>
-                                                                        <%= item.unidade_medida %> de <%=
-                                                                                item.quantidade_ideal %>
-                                                                                <%= item.unidade_medida %>)
-                                                                </p>
-                                                                <span class="activity-time">
-                                                                    Previsão de término <strong>
-                                                                        <%= item.previsaoFim %>
-                                                                    </strong>.
-                                                                    Última compra em <strong>
-                                                                        <%= dataCompraStr %>
-                                                                    </strong>
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <% }) %>
-
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card">
-    <div class="card-header">
-        <h3 class="card-title text-warning">A revisar</h3>
-        <p class="card-subtitle">Itens de consumo irregular abaixo do ideal</p>
-    </div>
-
-    <div class="card-scroll">
-        <div class="activity-feed">
-            <% 
-                // Filtramos aqui apenas os itens que NÃO são mensuráveis e estão abaixo do alerta
-                const irregulares = data.estoque.filter(i => 
-                    i.percentualAtual <= i.percentual_alerta && 
-                    i.consumo_mensuravel === 0
-                );
-            %>
-
-            <% if (irregulares.length === 0) { %>
-                <p style="text-align:center; color:#6c757d; padding: 20px;">
-                    Nenhum item irregular precisando de atenção! ✨
-                </p>
+            <% if (criticos.length === 0) { %>
+            <p style="text-align:center; color: var(--text-dim); padding: 20px; font-size: 0.9rem;">
+              Tudo sob controle por aqui! 🎉
+            </p>
             <% } %>
 
-            <% irregulares.forEach(item => { 
-                // Lógica de ícone idêntica para manter o padrão
-                let svgIcon = '';
-                switch(item.categoria) {
-                    case 'Higiene':
-                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12 20.73 6.96" /><line x1="12" y1="22" x2="12" y2="12" /></svg>';
-                        break;
-                    case 'Alimentos':
-                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /><path d="M9 4c1 1 2 2 3 3" /></svg>';
-                        break;
-                    case 'Limpeza':
-                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6" /><path d="M10 3v4" /><path d="M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /><path d="M16 5l3 2" /></svg>';
-                        break;
-                    default:
-                        svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>';
-                }
+            <% criticos.forEach(item => { 
+        // 1. Lógica do Ícone e Gradiente por Categoria
+        let svgIcon = '';
+        let gradient = '';
 
-                // Cores por categoria conforme combinamos
-                let iconColor = 'blue';
-                switch(item.categoria) {
-                    case 'Alimentos': iconColor = 'yellow'; break;
-                    case 'Limpeza': iconColor = 'green'; break;
-                    case 'Higiene': iconColor = 'pink'; break;
-                }
+        switch(item.categoria) {
+            case 'Higiene':
+                svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg>';
+                gradient = 'linear-gradient(135deg, #00d2ff, #3a7bd5)'; // Tons de Azul
+                break;
+            case 'Alimentos':
+                svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /></svg>';
+                gradient = 'linear-gradient(135deg, #ff9966, #ff5e62)'; // Tons de Laranja/Coral
+                break;
+            case 'Limpeza':
+                svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v4M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>';
+                gradient = 'linear-gradient(135deg, #43e97b, #38f9d7)'; // Tons de Verde/Ciano
+                break;
+            default:
+                svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /></svg>';
+                gradient = 'linear-gradient(135deg, #667eea, #764ba2)'; // Padrão Roxo
+        }
 
-                let dataCompraStr = item.data_ultima_compra ? item.data_ultima_compra.split('-').reverse().join('/') : 'N/A';
-            %>
-                <div class="activity-item">
-                    <div class="activity-icon <%= iconColor %>">
-                        <%- svgIcon %>
-                    </div>
-                    <div class="activity-content">
-                        <p class="activity-text">
-                            <strong><%= item.nome %></strong> está abaixo do ideal! 
-                            (<%= item.percentualAtual %>% em estoque)
-                        </p>
-                        <span class="activity-time">
-                            Consumo irregular (sem previsão). 
-                            Última compra em <strong><%= dataCompraStr %></strong>
-                        </span>
-                    </div>
-                </div>
-            <% }) %>
-        </div>
-    </div>
-</div>
-                    </div>
-<div class="two-col" style="margin-top: 1.5rem;">                        <div class="card">
-    <div class="card-header">
-        <h3 class="card-title text-warning">A revisar (Inativos)</h3>
-        <p class="card-subtitle">Itens sem atualização há +14 dias</p>
-    </div>
+        // 2. Formatação da Data de Compra
+        let dataCompraStr = 'N/A';
+        if (item.data_ultima_compra) {
+            const [ano, mes, dia] = item.data_ultima_compra.split('-');
+            dataCompraStr = `${dia}/${mes}/${ano}`;
+        }
 
-    <div class="card-scroll">
-        <div class="activity-feed">
-            <% if (itensInativos.length === 0) { %>
-                <p style="text-align:center; color:#6c757d; padding: 20px;">
-                    Todos os itens foram conferidos recentemente! 👍
+        // 3. Cor de Alerta no texto (opcional)
+        const textAlertClass = item.percentualAtual <= 10 ? 'text-danger' : '';
+    %>
+
+            <div class="activity-item">
+              <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px;">
+                <%- svgIcon %>
+              </div>
+              <div class="activity-content">
+                <p class="activity-text">
+                  <strong><%= item.nome %></strong> acabará em <span class="<%= textAlertClass %>"><%= item.previsaoFim %></span>
                 </p>
-            <% } %>
-
-            <% itensInativos.forEach(item => { 
-                // 1. Busca a data com segurança
-                let dataExibicao = 'Nunca revisado';
-                
-                if (item.registros && item.registros.length > 0) {
-                    const ultimaData = item.registros[item.registros.length - 1].data_registro;
-                    if (ultimaData) {
-                        dataExibicao = ultimaData.split('-').reverse().join('/');
-                    }
-                }
-
-                // 2. Cores das categorias (mantendo o seu padrão)
-                let iconColor = 'blue';
-                switch(item.categoria) {
-                    case 'Alimentos': iconColor = 'yellow'; break;
-                    case 'Limpeza': iconColor = 'green'; break;
-                    case 'Higiene': iconColor = 'pink'; break;
-                }
-            %>
-                <div class="activity-item">
-                    <div class="activity-icon <%= iconColor %>">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                    </div>
-                    <div class="activity-content">
-                        <p class="activity-text">
-                            <strong><%= item.nome %></strong> precisa de conferência.
-                        </p>
-                        <span class="activity-time">
-                            Última atualização em: <strong><%= dataExibicao %></strong><br>
-                            Status atual: <strong><%= item.percentualAtual %>%</strong> em estoque.
-                        </span>
-                    </div>
-                </div>
-            <% }) %>
-        </div>
-    </div>
-</div>
-                        
-                    </div>
-
-            </main>
-
-            <!-- Footer -->
-            <footer class="footer">
-                <p>&copy; 2026 DayNight Admin. Designed by <a href="https://www.templatemo.com" target="_blank"
-                        rel="nofollow">TemplateMo</a></p>
-            </footer>
+                <span class="activity-time">
+                  <%= item.estoqueEstimado %> de <%= item.quantidade_ideal %> (<%= item.unidade_medida %>).
+                  Última compra: <%= dataCompraStr %>
+                </span>
+              </div>
             </div>
 
-            <script src="templatemo-daynight-script.js"></script>
-        </body>
+            <% }) %>
 
-        </html>
+          </div>
+        </div>
+        <div class="glass-card activity-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Últimas atualizações</h2>
+              <p class="card-subtitle">Histórico das últimas duas datas de registro</p>
+            </div>
+          </div>
+          <div class="activity-list">
+
+            <% if (eventosRecentes.length === 0) { %>
+            <p style="text-align:center; color: var(--text-dim); padding: 20px;">Nenhuma atividade recente.</p>
+            <% } %>
+
+            <% eventosRecentes.forEach(evento => { 
+        const [ano, mes, dia] = evento.data.split('-');
+        const dataFormatada = `${dia}/${mes}/${ano}`;
+        
+        // Define se foi uma COMPRA ou apenas ATUALIZAÇÃO DE ESTOQUE
+        const ehCompra = evento.comprada > 0;
+    %>
+            <div class="activity-item">
+              <div class="activity-avatar" style="background: <%= ehCompra ? 'linear-gradient(135deg, #43e97b, #38f9d7)' : 'linear-gradient(135deg, #3a7bd5, #00d2ff)' %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px;">
+                <% if (ehCompra) { %>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="9" cy="21" r="1"></circle>
+                  <circle cx="20" cy="21" r="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                <% } else { %>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4"></path>
+                  <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+                </svg>
+                <% } %>
+              </div>
+              <div class="activity-content">
+                <p class="activity-text">
+                  <strong><%= ehCompra ? 'Compra efetuada' : 'Estoque atualizado' %></strong>:
+                  <%= ehCompra ? evento.comprada : evento.encontrada %> <%= evento.unidade %> de <%= evento.nome %>
+                </p>
+                <span class="activity-time"><%= dataFormatada %></span>
+              </div>
+            </div>
+            <% }) %>
+
+          </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="glass-card table-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Recent Transactions</h2>
+              <p class="card-subtitle">Latest orders and payments</p>
+            </div>
+            <div class="card-actions">
+              <button class="card-btn">View All</button>
+              <button class="card-btn">Export</button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Quantidade</th>
+                  <th>Porcentagem</th>
+                  <th>Status</th>
+                  <th>Término</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="table-user">
+                      <div class="table-avatar" style="background: linear-gradient(135deg, var(--emerald-light), var(--emerald));">ICONE DE COMIDA/LIMPEZA/HIGIENE</div>
+                      <div class="table-user-info"><span class="table-user-name">John Doe</span><span class="table-user-email">john@example.com</span></div>
+                    </div>
+                  </td>
+                  <td>Premium Plan</td>
+                  <td>Jan 15, 2025</td>
+                  <td><span class="status-badge completed">Completed</span></td>
+                  <td><span class="table-amount">$299.00</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="table-user">
+                      <div class="table-avatar" style="background: linear-gradient(135deg, var(--gold), var(--amber));">AS</div>
+                      <div class="table-user-info"><span class="table-user-name">Anna Smith</span><span class="table-user-email">anna@example.com</span></div>
+                    </div>
+                  </td>
+                  <td>Enterprise License</td>
+                  <td>Jan 14, 2025</td>
+                  <td><span class="status-badge processing">Processing</span></td>
+                  <td><span class="table-amount">$1,499.00</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="table-user">
+                      <div class="table-avatar" style="background: linear-gradient(135deg, var(--success), var(--emerald));">MJ</div>
+                      <div class="table-user-info"><span class="table-user-name">Mike Johnson</span><span class="table-user-email">mike@example.com</span></div>
+                    </div>
+                  </td>
+                  <td>Team Bundle</td>
+                  <td>Jan 13, 2025</td>
+                  <td><span class="status-badge completed">Completed</span></td>
+                  <td><span class="table-amount">$599.00</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="table-user">
+                      <div class="table-avatar" style="background: linear-gradient(135deg, var(--coral), var(--gold));">EW</div>
+                      <div class="table-user-info"><span class="table-user-name">Emily White</span><span class="table-user-email">emily@example.com</span></div>
+                    </div>
+                  </td>
+                  <td>Starter Plan</td>
+                  <td>Jan 12, 2025</td>
+                  <td><span class="status-badge pending">Pending</span></td>
+                  <td><span class="table-amount">$49.00</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="table-user">
+                      <div class="table-avatar" style="background: linear-gradient(135deg, var(--emerald), var(--gold));">RB</div>
+                      <div class="table-user-info"><span class="table-user-name">Robert Brown</span><span class="table-user-email">robert@example.com</span></div>
+                    </div>
+                  </td>
+                  <td>Pro Annual</td>
+                  <td>Jan 11, 2025</td>
+                  <td><span class="status-badge completed">Completed</span></td>
+                  <td><span class="table-amount">$199.00</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom Grid -->
+      <section class="bottom-grid">
+        <!-- Calendar Widget -->
+        <div class="glass-card">
+          <div class="calendar-header">
+            <h2 class="card-title">January 2025</h2>
+            <div class="calendar-nav">
+              <button class="calendar-nav-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg></button>
+              <button class="calendar-nav-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg></button>
+            </div>
+          </div>
+          <div class="calendar-grid">
+            <span class="calendar-day-name">Sun</span><span class="calendar-day-name">Mon</span><span class="calendar-day-name">Tue</span><span class="calendar-day-name">Wed</span><span class="calendar-day-name">Thu</span><span class="calendar-day-name">Fri</span><span class="calendar-day-name">Sat</span>
+            <span class="calendar-day other-month">29</span><span class="calendar-day other-month">30</span><span class="calendar-day other-month">31</span><span class="calendar-day today">1</span><span class="calendar-day">2</span><span class="calendar-day">3</span><span class="calendar-day">4</span>
+            <span class="calendar-day">5</span><span class="calendar-day">6</span><span class="calendar-day">7</span><span class="calendar-day">8</span><span class="calendar-day">9</span><span class="calendar-day">10</span><span class="calendar-day">11</span>
+            <span class="calendar-day">12</span><span class="calendar-day">13</span><span class="calendar-day">14</span><span class="calendar-day">15</span><span class="calendar-day">16</span><span class="calendar-day">17</span><span class="calendar-day">18</span>
+            <span class="calendar-day">19</span><span class="calendar-day">20</span><span class="calendar-day">21</span><span class="calendar-day">22</span><span class="calendar-day">23</span><span class="calendar-day">24</span><span class="calendar-day">25</span>
+            <span class="calendar-day">26</span><span class="calendar-day">27</span><span class="calendar-day">28</span><span class="calendar-day">29</span><span class="calendar-day">30</span><span class="calendar-day">31</span><span class="calendar-day other-month">1</span>
+          </div>
+        </div>
+
+        <!-- Donut Chart -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Traffic Sources</h2>
+              <p class="card-subtitle">User acquisition breakdown</p>
+            </div>
+          </div>
+          <div class="donut-container">
+            <div class="donut-chart">
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                <circle class="donut-bg" cx="70" cy="70" r="54" />
+                <circle class="donut-segment" cx="70" cy="70" r="54" stroke="var(--emerald-light)" stroke-dasharray="169.6 339.3" stroke-dashoffset="0" />
+                <circle class="donut-segment" cx="70" cy="70" r="54" stroke="var(--gold)" stroke-dasharray="101.8 339.3" stroke-dashoffset="-169.6" />
+                <circle class="donut-segment" cx="70" cy="70" r="54" stroke="var(--coral)" stroke-dasharray="67.9 339.3" stroke-dashoffset="-271.4" />
+              </svg>
+              <div class="donut-center">
+                <div class="donut-value">24.5K</div>
+                <div class="donut-label">Visitors</div>
+              </div>
+            </div>
+            <div class="donut-legend">
+              <div class="legend-item"><span class="legend-color cyan"></span><span>Organic Search (50%)</span></div>
+              <div class="legend-item"><span class="legend-color magenta"></span><span>Social Media (30%)</span></div>
+              <div class="legend-item"><span class="legend-color purple"></span><span>Direct Traffic (20%)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Card -->
+        <div class="glass-card progress-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Project Progress</h2>
+              <p class="card-subtitle">Current sprint status</p>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-header"><span class="progress-label">UI Design</span><span class="progress-value">85%</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill cyan" style="width: 85%;"></div>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-header"><span class="progress-label">Backend API</span><span class="progress-value">62%</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill magenta" style="width: 62%;"></div>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-header"><span class="progress-label">Testing</span><span class="progress-value">45%</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill purple" style="width: 45%;"></div>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-header"><span class="progress-label">Documentation</span><span class="progress-value">28%</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill cyan" style="width: 28%;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Mobile Menu Toggle -->
+  <button class="mobile-menu-toggle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  </button>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>Copyright © 2026 Your Company. Designed by <a href="https://templatemo.com" target="_blank" rel="nofollow">TemplateMo</a></p>
+  </footer>
+  <!-- TemplateMo 607 Glass Admin -->
+</body>
+
+</html>

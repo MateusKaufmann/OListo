@@ -34,7 +34,8 @@ module.exports = class consultasEstoqueDAO {
                             'data', DATE_FORMAT(r.data_registro, '%Y-%m-%d'),
                             'encontrada', r.quantidade_encontrada,
                             'resultante', r.quantidade_resultante,
-                            'comprada', r.quantidade_comprada
+                            'comprada', r.quantidade_comprada,
+                            'preco', r.preco_unitario -- ADICIONADO: Campo preço para cálculos de média e gasto
                         )
                     )
                     FROM estoque_registros r
@@ -53,7 +54,7 @@ module.exports = class consultasEstoqueDAO {
             const hojeStr = new Date().toISOString().split('T')[0];
 
             const itensTratados = resultado.map(item => {
-                // Parse do JSON se vier como string
+                // Parse do JSON se vier como string (comum em drivers MySQL)
                 if (typeof item.registros === 'string') {
                     item.registros = JSON.parse(item.registros);
                 }
@@ -73,7 +74,6 @@ module.exports = class consultasEstoqueDAO {
                         const ant = item.registros[i - 1];
                         const atu = item.registros[i];
 
-                        // Diferença de dias usando as strings YYYY-MM-DD do banco
                         const dias = (new Date(atu.data) - new Date(ant.data)) / 86400000;
                         const consumo = Number(ant.resultante) - Number(atu.encontrada);
 
@@ -90,7 +90,7 @@ module.exports = class consultasEstoqueDAO {
                 item.consumoMedio = consumoMedio;
 
                 // ============================
-                // 2️⃣ ESTOQUE ESTIMADO (Cálculo de Padaria)
+                // 2️⃣ ESTOQUE ESTIMADO
                 // ============================
                 let estoqueEstimado = 0;
                 let previsaoFim = "Sem previsão";
@@ -101,7 +101,6 @@ module.exports = class consultasEstoqueDAO {
                     
                     estoqueEstimado = Number(ultimo.resultante);
 
-                    // Só desconta consumo se hoje for um dia após o registro
                     if (hojeStr > dataUltimoStr && consumoMedio && item.consumo_mensuravel) {
                         const diffDias = Math.floor((new Date(hojeStr) - new Date(dataUltimoStr)) / 86400000);
                         estoqueEstimado -= (consumoMedio * diffDias);
@@ -109,7 +108,6 @@ module.exports = class consultasEstoqueDAO {
 
                     if (estoqueEstimado < 0) estoqueEstimado = 0;
 
-                    // Data prevista para zerar
                     if (consumoMedio > 0 && estoqueEstimado > 0) {
                         const diasRestantes = estoqueEstimado / consumoMedio;
                         const dFim = new Date();
@@ -118,7 +116,6 @@ module.exports = class consultasEstoqueDAO {
                     }
                 }
 
-                // Finalização das variáveis
                 item.estoqueEstimado = Number(estoqueEstimado.toFixed(2));
                 item.percentualAtual = item.quantidade_ideal > 0 
                     ? Number(((estoqueEstimado / item.quantidade_ideal) * 100).toFixed(2)) 
