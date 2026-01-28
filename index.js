@@ -35,7 +35,7 @@ const connection = mysql.createPool({
     connectionLimit: 4,
     host: "mysql-3f2310f6-mateusbkaufmann-d608.h.aivencloud.com",
     user: "avnadmin",
-    password: process.env.DB_PASSWORD,
+    password: "AVNS_rU9KmbSXihka-J3-GSL",
     database: "loop",
     port: "25420",
     ssl: {
