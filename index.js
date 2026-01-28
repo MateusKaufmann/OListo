@@ -112,6 +112,24 @@ app.get('/dashboard', (req, res) => {
 });
 
 
+app.get('/itens', (req, res) => {
+
+    if (!req.session.logged) return res.redirect('/');
+
+    const estoqueDAO = new consultasEstoqueDAO();
+    estoqueDAO.setUsuarioID(req.session.data_user.id);
+
+    estoqueDAO.buscarEstoqueUsuario(connection, itens => {
+        // itens já chegam com:
+        // estoqueEstimado, percentualAtual, abaixoDoAlerta, previsaoFim, consumoMedio
+        res.render('todos_itens', {
+            data: {
+                dados_usuario: req.session.data_user,
+                estoque: itens
+            }
+        });
+    });
+});
 
 
 
