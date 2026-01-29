@@ -22,7 +22,6 @@ module.exports = class consultasEstoqueDAO {
                 e.percentual_alerta, 
                 e.prioridade, 
                 e.consumo_mensuravel,
-                -- Busca a data da última vez que a quantidade_comprada foi maior que zero
                 (
                     SELECT DATE_FORMAT(MAX(r2.data_registro), '%Y-%m-%d')
                     FROM estoque_registros r2
@@ -35,7 +34,7 @@ module.exports = class consultasEstoqueDAO {
                             'encontrada', r.quantidade_encontrada,
                             'resultante', r.quantidade_resultante,
                             'comprada', r.quantidade_comprada,
-                            'preco', r.preco_unitario -- ADICIONADO: Campo preço para cálculos de média e gasto
+                            'preco', r.preco_unitario
                         )
                     )
                     FROM estoque_registros r
@@ -50,11 +49,9 @@ module.exports = class consultasEstoqueDAO {
         connection.query(sql, [this.usuario_id], (erro, resultado) => {
             if (erro) return callback(erro);
 
-            // Hoje no formato YYYY-MM-DD para comparação literal de strings
             const hojeStr = new Date().toISOString().split('T')[0];
 
             const itensTratados = resultado.map(item => {
-                // Parse do JSON se vier como string (comum em drivers MySQL)
                 if (typeof item.registros === 'string') {
                     item.registros = JSON.parse(item.registros);
                 }
@@ -94,10 +91,12 @@ module.exports = class consultasEstoqueDAO {
                 // ============================
                 let estoqueEstimado = 0;
                 let previsaoFim = "Sem previsão";
+                let ultimaDeclaracao = "Nenhum registro";
 
                 if (item.registros.length > 0) {
                     const ultimo = item.registros[item.registros.length - 1];
                     const dataUltimoStr = ultimo.data;
+                    ultimaDeclaracao = `${ultimo.resultante} ${item.unidade_medida} em ${dataUltimoStr}`;
                     
                     estoqueEstimado = Number(ultimo.resultante);
 
@@ -122,6 +121,16 @@ module.exports = class consultasEstoqueDAO {
                     : 0;
                 item.abaixoDoAlerta = item.percentualAtual <= item.percentual_alerta;
                 item.previsaoFim = previsaoFim;
+
+                // ============================
+                // LOG DE DEPURAÇÃO ATUALIZADO
+                // ============================
+                console.log(`[${item.nome.toUpperCase()}]`);
+                console.log(` > Total de Atualizações: ${item.registros.length}`);
+                console.log(` > Última Declaração: ${ultimaDeclaracao}`);
+                console.log(` > Média de Consumo: ${item.consumoMedio ? item.consumoMedio.toFixed(4) : 'N/A'} ${item.unidade_medida}/dia`);
+                console.log(` > Estoque Estimado Hoje: ${item.estoqueEstimado} ${item.unidade_medida}`);
+                console.log(`-------------------------------------------`);
 
                 return item;
             });

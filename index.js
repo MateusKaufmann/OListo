@@ -122,10 +122,10 @@ app.get('/itens', (req, res) => {
     estoqueDAO.buscarEstoqueUsuario(connection, itens => {
         // itens já chegam com:
         // estoqueEstimado, percentualAtual, abaixoDoAlerta, previsaoFim, consumoMedio
-        res.render('todos_itens', {
+        res.render('todosItens', {
             data: {
                 dados_usuario: req.session.data_user,
-                estoque: itens
+                estoque: itens,
             }
         });
     });
