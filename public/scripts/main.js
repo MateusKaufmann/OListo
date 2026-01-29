@@ -241,3 +241,210 @@ document.addEventListener('DOMContentLoaded', function () {
         overlay.addEventListener('click', closeMobileMenu);
     }
 });
+
+
+function toggleView(isResolver) {
+    const slider = document.getElementById('main-view-slider');
+    if (isResolver) {
+        slider.style.transform = 'translateX(-50%)';
+    } else {
+        slider.style.transform = 'translateX(0%)';
+    }
+}
+
+function changeQty(btn, delta) {
+    const span = btn.parentElement.querySelector('.qty-val');
+    let current = parseInt(span.innerText);
+    if (current + delta >= 0) {
+        span.innerText = current + delta;
+    }
+}
+
+function gerenciarNavegacao() {
+    const slider = document.getElementById('main-view-slider');
+    const sideResolver = document.getElementById('side-resolver');
+    const sideInventario = document.getElementById('side-inventario');
+    const sideScan = document.getElementById('side-scan'); // Novo painel Scan
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    // 1. Função principal para trocar de tela
+    window.irParaPainel = function(destino) {
+        // Resetamos a visibilidade de TODOS os painéis extras antes de mover
+        if (sideResolver) sideResolver.style.display = 'none';
+        if (sideInventario) sideInventario.style.display = 'none';
+        if (sideScan) sideScan.style.display = 'none';
+
+        if (destino === 'controle') {
+            // Volta para o Dashboard (0%)
+            slider.style.transform = 'translateX(0%)';
+            atualizarLinkAtivo('/');
+        } 
+        else {
+            // Define qual painel será exibido na direita
+            if (destino === 'resolver' && sideResolver) {
+                sideResolver.style.display = 'block';
+                atualizarLinkAtivo('resolver');
+            } 
+            else if (destino === 'inventario' && sideInventario) {
+                sideInventario.style.display = 'block';
+                atualizarLinkAtivo('inventario');
+            }
+            else if (destino === 'scan' && sideScan) {
+                sideScan.style.display = 'block';
+                atualizarLinkAtivo('scan'); // Certifique-se que o link do Scan tenha "scan" no nome/href
+            }
+
+            // Move o slider para a 2ª metade (Independente de qual painel abriu)
+            slider.style.transform = 'translateX(-50%)';
+        }
+    };
+
+    // 2. Função para destacar o botão correto na sidebar
+    function atualizarLinkAtivo(hrefOuTipo) {
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            const href = link.getAttribute('href');
+            if (href && (href.includes(hrefOuTipo) || (hrefOuTipo === '/' && href === '/'))) {
+                link.classList.add('active');
+            }
+        });
+    }
+
+    // 3. Captura cliques no link "Painel de Controle"
+    const linkHome = document.querySelector('a[href="/"]');
+    if (linkHome) {
+        linkHome.addEventListener('click', function(e) {
+            e.preventDefault();
+            irParaPainel('controle');
+        });
+    }
+
+    // 4. Captura clique no "Listo Scan" (Caso você use a classe .nav-upgrade que está no seu HTML)
+    const linkScan = document.querySelector('.nav-upgrade');
+    if (linkScan) {
+        linkScan.addEventListener('click', function(e) {
+            e.preventDefault();
+            irParaPainel('scan');
+        });
+    }
+}
+
+// Inicializa quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', gerenciarNavegacao);
+
+/**
+ * Funções de atalho para os onclicks do seu HTML
+ */
+function gerenciarPaineis(tipo) {
+    if(window.irParaPainel) window.irParaPainel(tipo);
+}
+
+// Funções de compatibilidade para os botões "Sair"
+function toggleView(show) { if(!show) window.irParaPainel('controle'); }
+function toggleInventoryView(show) { if(!show) window.irParaPainel('controle'); }
+function toggleScanView(show) { if(!show) window.irParaPainel('controle'); }
+
+
+
+let slideScanAtual = 0;
+const totalSlidesScan = 8;
+
+function moverSliderInterno(direcao) {
+    const slider = document.getElementById('inner-category-slider');
+    if (!slider) return;
+
+    slideScanAtual += direcao;
+
+    // Limites
+    if (slideScanAtual < 0) slideScanAtual = 0;
+    if (slideScanAtual >= totalSlidesScan) slideScanAtual = totalSlidesScan - 1;
+
+    // O pulo é de 12.5% (1/8 de 800%)
+    const deslocamento = slideScanAtual * 12.5;
+    slider.style.transform = `translateX(-${deslocamento}%)`;
+    
+    atualizarDotsScan();
+}
+
+function atualizarDotsScan() {
+    const dotsContainer = document.getElementById('dots-indicador');
+    if (!dotsContainer) return;
+    
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < totalSlidesScan; i++) {
+        const dot = document.createElement('div');
+        dot.style.cssText = `
+            width: ${i === slideScanAtual ? '12px' : '6px'};
+            height: 6px;
+            border-radius: 3px;
+            background: ${i === slideScanAtual ? 'var(--primary)' : 'rgba(0,0,0,0.2)'};
+            transition: all 0.3s ease;
+        `;
+        dotsContainer.appendChild(dot);
+    }
+}
+
+// Chame a função ao carregar a página ou abrir o painel
+document.addEventListener('DOMContentLoaded', atualizarDotsScan);
+
+
+// Objeto para rastrear o estado de cada um dos 4 tinders
+const tinderStates = {
+    cozinha: { current: 0, total: 0 },
+    higiene: { current: 0, total: 0 },
+    limpeza: { current: 0, total: 0 },
+    geral: { current: 0, total: 0 }
+};
+
+function moveTinder(tinderId, direction) {
+    const card = document.getElementById(`tinder-${tinderId}`);
+    const track = card.querySelector('.tinder-track');
+    const counter = card.querySelector('.tinder-counter');
+    
+    // Pega o total de itens (calculado pela largura do track / 100)
+    const totalItems = track.querySelectorAll('.tinder-item').length;
+    tinderStates[tinderId].total = totalItems;
+
+    let nextSlide = tinderStates[tinderId].current + direction;
+
+    // Bloqueia limites
+    if (nextSlide >= 0 && nextSlide < totalItems) {
+        tinderStates[tinderId].current = nextSlide;
+        const offset = nextSlide * (100 / totalItems);
+        track.style.transform = `translateX(-${offset}%)`;
+        
+        // Atualiza contador
+        counter.innerText = `${nextSlide + 1} / ${totalItems}`;
+    }
+}
+
+function updateTinderQty(itemId, change) {
+    const span = document.getElementById(`val-${itemId}`);
+    const bar = document.getElementById(`bar-${itemId}`);
+    
+    if (!span || !bar) return;
+
+    let currentVal = parseInt(span.innerText);
+    const idealVal = parseFloat(bar.getAttribute('data-ideal')) || 1; // Evita divisão por zero
+
+    // Atualiza valor numérico
+    currentVal = Math.max(0, currentVal + change);
+    span.innerText = currentVal;
+
+    // Atualiza Barra de Progresso (Capado em 100% para não explodir o layout)
+    let percent = (currentVal / idealVal) * 100;
+    bar.style.width = Math.min(100, percent) + '%';
+
+    // Feedback visual de cor se estiver acabando
+    if (percent <= 15) {
+        bar.style.filter = 'hue-rotate(-40deg) saturate(1.5)'; // Fica mais avermelhado
+    } else {
+        bar.style.filter = 'none';
+    }
+}
+
+function salvarTudo() {
+    // Aqui você coleta todos os valores dos spans que começam com "val-"
+    // e envia via fetch para sua rota de atualização.
+    console.log("Salvando todas as revisões...");
+}
