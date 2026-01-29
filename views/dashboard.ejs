@@ -548,15 +548,35 @@
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 5px; min-width: 90px;">
-                      <div class="pill-input-group">
-                        <button onclick="changeQty(this, -1)">-</button>
-                        <span class="qty-val" style="color: var(--dynamic-text);"><%= Math.round(item.estoqueEstimado) %></span>
-                        <button onclick="changeQty(this, 1)">+</button>
+                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+
+                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          <span style="transform: translateY(-1px);">−</span>
+                        </button>
+
+                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
+                          <%= Math.round(item.estoqueEstimado) %>
+                        </span>
+
+                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          +
+                        </button>
+
                       </div>
-                      <div class="pill-input-group" style="border-color: var(--emerald);">
-                        <button onclick="changeQty(this, -1)" style="color: var(--emerald)">-</button>
-                        <span class="qty-val" style="color: var(--emerald)">0</span>
-                        <button onclick="changeQty(this, 1)" style="color: var(--emerald)">+</button>
+                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+
+                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          <span style="transform: translateY(-1px);">−</span>
+                        </button>
+
+                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
+                          0
+                        </span>
+
+                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          +
+                        </button>
+
                       </div>
                     </div>
                   </div>
@@ -593,15 +613,35 @@
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 5px; min-width: 90px;">
-                      <div class="pill-input-group">
-                        <button onclick="changeQty(this, -1)">-</button>
-                        <span class="qty-val" style="color: var(--dynamic-text);"><%= Math.round(item.estoqueEstimado) %></span>
-                        <button onclick="changeQty(this, 1)">+</button>
+                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+
+                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          <span style="transform: translateY(-1px);">−</span>
+                        </button>
+
+                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
+                          <%= Math.round(item.estoqueEstimado) %>
+                        </span>
+
+                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          +
+                        </button>
+
                       </div>
-                      <div class="pill-input-group" style="border-color: var(--emerald);">
-                        <button onclick="changeQty(this, -1)" style="color: var(--emerald)">-</button>
-                        <span class="qty-val" style="color: var(--emerald)">0</span>
-                        <button onclick="changeQty(this, 1)" style="color: var(--emerald)">+</button>
+                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+
+                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          <span style="transform: translateY(-1px);">−</span>
+                        </button>
+
+                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
+                          0
+                        </span>
+
+                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                          +
+                        </button>
+
                       </div>
                     </div>
                   </div>
@@ -919,39 +959,37 @@
         default: svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /></svg>';
     }
 %>
-<div class="tinder-item" style="width: <%= 100 / itens.length %>%; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                  <div class="tinder-item" style="width: <%= 100 / itens.length %>%; padding: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
 
-    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; width: 100%; padding: 0 15px;">
-        
-        <div class="activity-avatar" style="background: <%= tinder.cor %>; min-width: 70px; height: 70px; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; box-shadow: 0 8px 20px rgba(0,0,0,0.1);">
-            <div style="width: 35px;"><%- svgIcon %></div>
-        </div>
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; width: 100%; padding: 0 15px;">
 
-        <div style="flex-grow: 1; text-align: left;">
-            <h3 style="margin: 0; font-size: 1.2rem; color: var(--dynamic-text);"><%= item.nome %></h3>
-            <p style="font-size: 0.75rem; color: var(--dynamic-subtext); margin: 2px 0 8px 0;">Meta: <%= item.quantidade_ideal %></p>
-            
-            <div class="progress-bar" style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
-                <div id="bar-<%= item.id %>" 
-                     data-ideal="<%= item.quantidade_ideal %>"
-                     style="width: <%= Math.min(100, (item.estoqueEstimado / item.quantidade_ideal) * 100) %>%; 
+                      <div class="activity-avatar" style="background: <%= tinder.cor %>; min-width: 70px; height: 70px; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; box-shadow: 0 8px 20px rgba(0,0,0,0.1);">
+                        <div style="width: 35px;"><%- svgIcon %></div>
+                      </div>
+
+                      <div style="flex-grow: 1; text-align: left;">
+                        <h3 style="margin: 0; font-size: 1.2rem; color: var(--dynamic-text);"><%= item.nome %></h3>
+                        <p style="font-size: 0.75rem; color: var(--dynamic-subtext); margin: 2px 0 8px 0;">Meta: <%= item.quantidade_ideal %></p>
+
+                        <div class="progress-bar" style="width: 100%; height: 8px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
+                          <div id="bar-<%= item.id %>" data-ideal="<%= item.quantidade_ideal %>" style="width: <%= Math.min(100, (item.estoqueEstimado / item.quantidade_ideal) * 100) %>%; 
                             height: 100%; 
                             background: <%= tinder.cor %>; 
                             transition: width 0.3s ease;">
-                </div>
-            </div>
-        </div>
-    </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-    <div class="pill-input-group" style="display: flex; align-items: center; gap: 25px; background: rgba(0,0,0,0.03); padding: 12px 25px; border-radius: 50px; border: 1px solid var(--glass-border);">
-        <button onclick="updateTinderQty('<%= item.id %>', -1)" style="border: none; background: none; font-size: 1.8rem; cursor: pointer; color: var(--primary); font-weight: bold;">-</button>
-        <span id="val-<%= item.id %>" class="qty-val" style="font-size: 2.2rem; font-weight: 800; min-width: 60px; color: var(--dynamic-text);"><%= Math.round(item.estoqueEstimado) %></span>
-        <button onclick="updateTinderQty('<%= item.id %>', 1)" style="border: none; background: none; font-size: 1.8rem; cursor: pointer; color: var(--primary); font-weight: bold;">+</button>
-    </div>
+                    <div class="pill-input-group" style="display: flex; align-items: center; gap: 25px; background: rgba(0,0,0,0.03); padding: 12px 25px; border-radius: 50px; border: 1px solid var(--glass-border);">
+                      <button onclick="updateTinderQty('<%= item.id %>', -1)" style="border: none; background: none; font-size: 1.8rem; cursor: pointer; color: var(--primary); font-weight: bold;">-</button>
+                      <span id="val-<%= item.id %>" class="qty-val" style="font-size: 2.2rem; font-weight: 800; min-width: 60px; color: var(--dynamic-text);"><%= Math.round(item.estoqueEstimado) %></span>
+                      <button onclick="updateTinderQty('<%= item.id %>', 1)" style="border: none; background: none; font-size: 1.8rem; cursor: pointer; color: var(--primary); font-weight: bold;">+</button>
+                    </div>
 
-    <p style="font-size: 0.7rem; color: var(--dynamic-subtext); margin-top: 15px;">Última compra: <%= item.data_ultima_compra || 'N/A' %></p>
-</div>
-<% }) %>
+                    <p style="font-size: 0.7rem; color: var(--dynamic-subtext); margin-top: 15px;">Última compra: <%= item.data_ultima_compra || 'N/A' %></p>
+                  </div>
+                  <% }) %>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; margin-top: 10px;">
@@ -1002,7 +1040,61 @@
       let val = parseInt(span.innerText) || 0;
       if (val + delta >= 0) span.innerText = val + delta;
     }
+    document.addEventListener('DOMContentLoaded', function() {
+      // Seleciona todos os links dentro da sidebar
+      const menuLinks = document.querySelectorAll('.sidebar .nav-link');
+
+      menuLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          // Verifica se estamos no modo mobile (ajuste os 991px se necessário)
+          if (window.innerWidth <= 991) {
+            // Remove a classe do elemento que controla a abertura
+            // Geralmente o template adiciona essa classe no body ou na própria aside
+            document.body.classList.remove('sidebar-open');
+
+            // Caso a classe esteja no ID sidebar, removemos de lá também por segurança
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+              sidebar.classList.remove('sidebar-open');
+            }
+
+            // Se houver um overlay/fundo escuro clicável, removemos a visibilidade dele
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (overlay) {
+              overlay.classList.remove('show');
+            }
+          }
+        });
+      });
+    });
+    // Seleciona todos os links do menu
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    // Seleciona o elemento que contém a classe de abertura
+    // (Ajustei para procurar no body ou no aside, que é o padrão)
+    const sidebarElement = document.querySelector('.sidebar, aside, body');
+
+    navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      // Só executa se estiver em telas menores (Mobile/Tablet)
+      if (window.innerWidth <= 991) {
+        // Remove a classe que você identificou
+        if (sidebarElement.classList.contains('sidebar-open')) {
+          sidebarElement.classList.remove('sidebar-open');
+        }
+
+        // Caso o seu template use um overlay (fundo escuro) que precise sumir:
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+          overlay.classList.remove('active');
+        }
+      }
+    });
+    });
+    });
   </script>
+
+
 </body>
 
 </html>
