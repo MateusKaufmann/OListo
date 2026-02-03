@@ -1,0 +1,113 @@
+<%# Partial: Resolver (Vamos às compras) - Itens Críticos + Mais alguma coisa? %>
+<div id="side-resolver" style="width: 50%; flex-shrink: 0; padding: 0 15px; overflow-y: auto; display: none;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px 5px;">
+    <div>
+      <h2 class="page-title" style="margin:0; font-size: 1.5rem; color: var(--dynamic-text);">Resolver</h2>
+      <p class="card-subtitle">Confirme o estoque real ou as compras</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button onclick="salvarTudo()" class="card-btn" style="background: var(--emerald); color: white; border: none;">Confirmar</button>
+    </div>
+  </div>
+
+  <section class="content-grid">
+
+    <div class="glass-card" style="height: 80vh; display: flex; flex-direction: column;">
+      <div class="card-header" style="flex-shrink: 0;">
+        <h2 class="card-title">Itens Críticos</h2>
+      </div>
+      <div class="activity-list" style="flex-grow: 1; overflow-y: auto; padding-right: 5px;">
+        <% criticos.forEach(item => { 
+          let svgIcon = ''; let gradient = '';
+          switch(item.categoria) {
+              case 'Higiene': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg>'; gradient = 'linear-gradient(135deg, #00d2ff, #3a7bd5)'; break;
+              case 'Alimentos': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /></svg>'; gradient = 'linear-gradient(135deg, #ff9966, #ff5e62)'; break;
+              case 'Limpeza': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v4M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>'; gradient = 'linear-gradient(135deg, #43e97b, #38f9d7)'; break;
+              default: svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /></svg>'; gradient = 'linear-gradient(135deg, #667eea, #764ba2)';
+          }
+          const isMuitoCritico = item.percentualAtual <= 10 || item.previsaoFim === 'Hoje' || item.previsaoFim === 'Atrasado';
+        %>
+        <div class="activity-item" style="padding: 15px 0; border-bottom: 1px solid var(--glass-border); align-items: center;">
+          <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px; position: relative; flex-shrink: 0;">
+            <%- svgIcon %>
+            <% if (isMuitoCritico) { %> <span style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ff5e62; border-radius: 50%; border: 1px solid white;"></span> <% } %>
+          </div>
+          <div class="activity-content" style="flex-grow: 1;">
+            <p class="activity-text" style="color: var(--dynamic-text);"><strong><%= item.nome %></strong></p>
+            <span class="activity-time" style="color: var(--dynamic-subtext);">Meta: <%= item.quantidade_ideal %></span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 5px; min-width: 90px;">
+            <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+              <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                <span style="transform: translateY(-1px);">−</span>
+              </button>
+              <span class="qty-val" data-item-id="<%= item.id %>" data-type="encontrado" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;"><%= Math.round(item.estoqueEstimado) %></span>
+              <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">+</button>
+            </div>
+            <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+              <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                <span style="transform: translateY(-1px);">−</span>
+              </button>
+              <span class="qty-val" data-item-id="<%= item.id %>" data-type="comprado" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">0</span>
+              <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">+</button>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="glass-card" style="height: 80vh; display: flex; flex-direction: column;">
+      <div class="card-header" style="flex-shrink: 0;">
+        <h2 class="card-title">Mais alguma coisa?</h2>
+      </div>
+      <div class="activity-list" style="flex-grow: 1; overflow-y: auto; padding-right: 5px;">
+        <% 
+          const idsResolvidos = criticos.map(c => c.id);
+          data.estoque
+            .filter(i => !idsResolvidos.includes(i.id))
+            .sort((a, b) => a.nome.localeCompare(b.nome))
+            .forEach(item => { 
+          let svgIcon = ''; let gradient = '';
+          switch(item.categoria) {
+              case 'Higiene': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg>'; gradient = 'linear-gradient(135deg, #00d2ff, #3a7bd5)'; break;
+              case 'Alimentos': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7c-4 0-7 3-7 8a7 7 0 0 0 14 0c0-5-3-8-7-8z" /><path d="M12 7c0-2 1-4 3-5" /></svg>'; gradient = 'linear-gradient(135deg, #ff9966, #ff5e62)'; break;
+              case 'Limpeza': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v4M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>'; gradient = 'linear-gradient(135deg, #43e97b, #38f9d7)'; break;
+              default: svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /></svg>'; gradient = 'linear-gradient(135deg, #667eea, #764ba2)';
+          }
+        %>
+        <div class="activity-item" style="padding: 15px 0; border-bottom: 1px solid var(--glass-border); align-items: center;">
+          <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px; flex-shrink: 0;">
+            <%- svgIcon %>
+          </div>
+          <div class="activity-content" style="flex-grow: 1;">
+            <p class="activity-text" style="color: var(--dynamic-text);"><strong><%= item.nome %></strong></p>
+            <span class="activity-time" style="color: var(--dynamic-subtext);">Tem: <%= Math.round(item.estoqueEstimado) %></span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 5px; min-width: 90px;">
+            <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+              <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                <span style="transform: translateY(-1px);">−</span>
+              </button>
+              <span class="qty-val" data-item-id="<%= item.id %>" data-type="encontrado" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;"><%= Math.round(item.estoqueEstimado) %></span>
+              <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">+</button>
+            </div>
+            <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
+              <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
+                <span style="transform: translateY(-1px);">−</span>
+              </button>
+              <span class="qty-val" data-item-id="<%= item.id %>" data-type="comprado" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">0</span>
+              <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">+</button>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <div style="height: 120px;"></div>
+</div>

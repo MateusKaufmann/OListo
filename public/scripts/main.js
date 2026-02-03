@@ -252,14 +252,6 @@ function toggleView(isResolver) {
     }
 }
 
-function changeQty(btn, delta) {
-    const span = btn.parentElement.querySelector('.qty-val');
-    let current = parseInt(span.innerText);
-    if (current + delta >= 0) {
-        span.innerText = current + delta;
-    }
-}
-
 function gerenciarNavegacao() {
     const slider = document.getElementById('main-view-slider');
     const sideResolver = document.getElementById('side-resolver');
@@ -444,7 +436,86 @@ function updateTinderQty(itemId, change) {
 }
 
 function salvarTudo() {
-    // Aqui você coleta todos os valores dos spans que começam com "val-"
-    // e envia via fetch para sua rota de atualização.
-    console.log("Salvando todas as revisões...");
+    const itens = [];
+    const activityItems = document.querySelectorAll('#side-resolver .activity-item');
+    
+    activityItems.forEach(item => {
+        const itemId = item.getAttribute('data-item-id');
+        const estoquePrevisto = parseFloat(item.getAttribute('data-estoque-previsto'));
+        
+        const pillEncontrada = item.querySelector('.pill-input-group[data-type="encontrada"] .qty-val');
+        const pillComprada = item.querySelector('.pill-input-group[data-type="comprada"] .qty-val');
+        const inputPreco = item.querySelector('.pill-input-group[data-type="preco"] .price-input');
+        
+        const quantidadeEncontrada = parseInt(pillEncontrada.innerText);
+        const quantidadeComprada = parseInt(pillComprada.innerText);
+        const precoUnitario = parseFloat(inputPreco.value) || 0;
+        
+        if (quantidadeEncontrada !== estoquePrevisto || quantidadeComprada > 0) {
+            itens.push({
+                item_id: itemId,
+                quantidade_prevista: estoquePrevisto,
+                quantidade_encontrada: quantidadeEncontrada,
+                quantidade_comprada: quantidadeComprada,
+                preco_unitario: precoUnitario,
+                quantidade_resultante: quantidadeEncontrada + quantidadeComprada
+            });
+        }
+    });
+    
+    if (itens.length === 0) {
+        alert('Nenhuma alteração foi feita.');
+        return;
+    }
+    
+    fetch('/atualizar-estoque', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ itens })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Estoque atualizado com sucesso!');
+            window.location.reload();
+        } else {
+            alert('Erro ao atualizar estoque: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao atualizar estoque.');
+    });
+}
+
+function atualizarTotal() {
+    let total = 0;
+    const activityItems = document.querySelectorAll('#side-resolver .activity-item');
+    
+    activityItems.forEach(item => {
+        const pillComprada = item.querySelector('.pill-input-group[data-type="comprada"] .qty-val');
+        const inputPreco = item.querySelector('.pill-input-group[data-type="preco"] .price-input');
+        
+        const quantidadeComprada = parseInt(pillComprada.innerText) || 0;
+        const precoUnitario = parseFloat(inputPreco.value) || 0;
+        
+        total += quantidadeComprada * precoUnitario;
+    });
+    
+    const totalElement = document.getElementById('total-compras');
+    if (totalElement) {
+        totalElement.textContent = `Total até o momento: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+}
+
+function changeQty(button, change) {
+    const pillGroup = button.closest('.pill-input-group');
+    const span = pillGroup.querySelector('.qty-val');
+    let currentVal = parseInt(span.innerText);
+    currentVal = Math.max(0, currentVal + change);
+    span.innerText = currentVal;
+    
+    atualizarTotal();
 }

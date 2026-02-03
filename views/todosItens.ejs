@@ -14,7 +14,7 @@
     // ORDENAÇÃO POR TÉRMINO (O que acaba antes no topo)
     const criticos = criticosRaw.sort((a, b) => {
         const converterData = (dataStr) => {
-            if (!dataStr || dataStr === 'N/A' || dataStr === 'Sem previsão') return new Date(8640000000000000);
+            if (!dataStr || dataStr === 'N/A' || dataStr === 'Listo está aprendendo o consumo...') return new Date(8640000000000000);
             const [dia, mes, ano] = dataStr.split('/');
             return new Date(ano, mes - 1, dia);
         };
@@ -75,12 +75,12 @@
     // ==========================================
     // 4. PREVISÃO DE DIAS E GASTOS (PRÓXIMA COMPRA)
     // ==========================================
-    let textoDiasMercado = "Sem previsão";
+    let textoDiasMercado = "Hoje";
     let gastoPrevisto = 0;
 
     const datasPrevisao = criticos
         .map(i => {
-            if (!i.previsaoFim || i.previsaoFim === "Sem previsão") return null;
+            if (!i.previsaoFim || i.previsaoFim === 'Listo está aprendendo o consumo...') return null;
             const [dia, mes, ano] = i.previsaoFim.split('/');
             return new Date(`${ano}-${mes}-${dia}T00:00:00`);
         })
@@ -101,12 +101,10 @@
 
     criticos.forEach(item => {
         const compras = item.registros.filter(r => Number(r.comprada) > 0 && Number(r.preco) > 0);
-        const precoMedio = compras.length > 0 
-            ? compras.reduce((acc, cur) => acc + Number(cur.preco), 0) / compras.length 
-            : 0;
+        const ultimoPrecoCompra = compras.length > 0 ? Number(compras[compras.length - 1].preco) : 0;
         
         const faltaParaIdeal = Math.max(0, item.quantidade_ideal - item.estoqueEstimado);
-        gastoPrevisto += (faltaParaIdeal * precoMedio);
+        gastoPrevisto += (faltaParaIdeal * ultimoPrecoCompra);
     });
 
     let todasAsDatasRegistros = [];

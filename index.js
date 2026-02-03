@@ -68,6 +68,15 @@ app.get('/', function (req, res) {
     }
 });
 
+app.get('/logout', function (req, res) {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Erro ao destruir sessão:', err);
+        }
+        res.redirect('/');
+    });
+});
+
 
 //post de autenticação 
 app.post('/autenticar', function (req, res) {
@@ -120,14 +129,159 @@ app.get('/itens', (req, res) => {
     estoqueDAO.setUsuarioID(req.session.data_user.id);
 
     estoqueDAO.buscarEstoqueUsuario(connection, itens => {
-        // itens já chegam com:
-        // estoqueEstimado, percentualAtual, abaixoDoAlerta, previsaoFim, consumoMedio
         res.render('todosItens', {
             data: {
                 dados_usuario: req.session.data_user,
                 estoque: itens,
             }
         });
+    });
+});
+
+app.post('/atualizar-estoque', (req, res) => {
+    if (!req.session.logged) return res.status(401).json({ success: false, message: 'Não autenticado' });
+
+    const { itens } = req.body;
+    const usuarioId = req.session.data_user.id;
+    const dataRegistro = new Date().toISOString().split('T')[0];
+
+    if (!itens || itens.length === 0) {
+        return res.json({ success: false, message: 'Nenhum item para atualizar' });
+    }
+
+    const queries = itens.map(item => {
+        return new Promise((resolve, reject) => {
+            const sql = `
+                INSERT INTO estoque_registros 
+                (usuario_id, item_id, data_registro, quantidade_prevista, quantidade_encontrada, quantidade_comprada, preco_unitario, quantidade_resultante)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            const values = [
+                usuarioId,
+                item.item_id,
+                dataRegistro,
+                item.quantidade_prevista,
+                item.quantidade_encontrada,
+                item.quantidade_comprada,
+                item.preco_unitario || 0,
+                item.quantidade_resultante
+            ];
+
+            connection.query(sql, values, (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    });
+
+    Promise.all(queries)
+        .then(() => {
+            res.json({ success: true, message: 'Estoque atualizado com sucesso' });
+        })
+        .catch(err => {
+            console.error('Erro ao atualizar estoque:', err);
+            res.json({ success: false, message: 'Erro ao salvar no banco de dados' });
+        });
+});
+
+app.get('/api/item/:id', (req, res) => {
+    if (!req.session.logged) return res.status(401).json({ success: false, message: 'Não autenticado' });
+
+    const itemId = req.params.id;
+    const usuarioId = req.session.data_user.id;
+
+    const sql = 'SELECT * FROM estoque_itens WHERE id = ? AND usuario_id = ?';
+    connection.query(sql, [itemId, usuarioId], (err, resultado) => {
+        if (err) {
+            console.error('Erro ao buscar item:', err);
+            return res.status(500).json({ success: false, message: 'Erro ao buscar item' });
+        }
+        if (resultado.length === 0) {
+            return res.status(404).json({ success: false, message: 'Item não encontrado' });
+        }
+        res.json(resultado[0]);
+    });
+});
+
+app.post('/api/item', (req, res) => {
+    if (!req.session.logged) return res.status(401).json({ success: false, message: 'Não autenticado' });
+
+    const usuarioId = req.session.data_user.id;
+    const { nome, categoria, unidade_medida, quantidade_ideal, percentual_alerta, prioridade, consumo_mensuravel } = req.body;
+
+    const sqlItem = `
+        INSERT INTO estoque_itens 
+        (usuario_id, nome, categoria, unidade_medida, quantidade_ideal, percentual_alerta, prioridade, consumo_mensuravel, ativo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+    `;
+
+    connection.query(sqlItem, [usuarioId, nome, categoria, unidade_medida, quantidade_ideal, percentual_alerta, prioridade, consumo_mensuravel], (err, resultado) => {
+        if (err) {
+            console.error('Erro ao criar item:', err);
+            return res.status(500).json({ success: false, message: 'Erro ao criar item' });
+        }
+
+        const novoItemId = resultado.insertId;
+        const dataRegistro = new Date().toISOString().split('T')[0];
+        
+        const sqlRegistro = `
+            INSERT INTO estoque_registros 
+            (usuario_id, item_id, data_registro, quantidade_prevista, quantidade_encontrada, quantidade_comprada, preco_unitario, quantidade_resultante)
+            VALUES (?, ?, ?, 0, 0, 0, 0, 0)
+        `;
+
+        connection.query(sqlRegistro, [usuarioId, novoItemId, dataRegistro], (err2) => {
+            if (err2) {
+                console.error('Erro ao criar registro inicial:', err2);
+                return res.status(500).json({ success: false, message: 'Item criado, mas erro ao criar registro inicial' });
+            }
+            res.json({ success: true, message: 'Item adicionado com sucesso', itemId: novoItemId });
+        });
+    });
+});
+
+app.put('/api/item/:id', (req, res) => {
+    if (!req.session.logged) return res.status(401).json({ success: false, message: 'Não autenticado' });
+
+    const itemId = req.params.id;
+    const usuarioId = req.session.data_user.id;
+    const { nome, categoria, unidade_medida, quantidade_ideal, percentual_alerta, prioridade, consumo_mensuravel } = req.body;
+
+    const sql = `
+        UPDATE estoque_itens 
+        SET nome = ?, categoria = ?, unidade_medida = ?, quantidade_ideal = ?, 
+            percentual_alerta = ?, prioridade = ?, consumo_mensuravel = ?
+        WHERE id = ? AND usuario_id = ?
+    `;
+
+    connection.query(sql, [nome, categoria, unidade_medida, quantidade_ideal, percentual_alerta, prioridade, consumo_mensuravel, itemId, usuarioId], (err, resultado) => {
+        if (err) {
+            console.error('Erro ao atualizar item:', err);
+            return res.status(500).json({ success: false, message: 'Erro ao atualizar item' });
+        }
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Item não encontrado' });
+        }
+        res.json({ success: true, message: 'Item atualizado com sucesso' });
+    });
+});
+
+app.delete('/api/item/:id', (req, res) => {
+    if (!req.session.logged) return res.status(401).json({ success: false, message: 'Não autenticado' });
+
+    const itemId = req.params.id;
+    const usuarioId = req.session.data_user.id;
+
+    const sql = 'DELETE FROM estoque_itens WHERE id = ? AND usuario_id = ?';
+    connection.query(sql, [itemId, usuarioId], (err, resultado) => {
+        if (err) {
+            console.error('Erro ao excluir item:', err);
+            return res.status(500).json({ success: false, message: 'Erro ao excluir item' });
+        }
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'Item não encontrado' });
+        }
+        res.json({ success: true, message: 'Item excluído com sucesso' });
     });
 });
 

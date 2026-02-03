@@ -14,7 +14,7 @@
     // ORDENAÇÃO POR TÉRMINO (O que acaba antes no topo)
     const criticos = criticosRaw.sort((a, b) => {
         const converterData = (dataStr) => {
-            if (!dataStr || dataStr === 'N/A' || dataStr === 'Sem previsão') return new Date(8640000000000000);
+            if (!dataStr || dataStr === 'N/A' || dataStr === 'Listo está aprendendo o consumo...') return new Date(8640000000000000);
             const [dia, mes, ano] = dataStr.split('/');
             return new Date(ano, mes - 1, dia);
         };
@@ -75,12 +75,12 @@
     // ==========================================
     // 4. PREVISÃO DE DIAS E GASTOS (PRÓXIMA COMPRA)
     // ==========================================
-    let textoDiasMercado = "Sem previsão";
+    let textoDiasMercado = "Hoje";
     let gastoPrevisto = 0;
 
     const datasPrevisao = criticos
         .map(i => {
-            if (!i.previsaoFim || i.previsaoFim === "Sem previsão") return null;
+            if (!i.previsaoFim || i.previsaoFim === 'Listo está aprendendo o consumo...') return null;
             const [dia, mes, ano] = i.previsaoFim.split('/');
             return new Date(ano, mes - 1, dia); // Criado sem o T00:00 para evitar conflito de timezone
         })
@@ -106,12 +106,10 @@
 
     criticos.forEach(item => {
         const compras = item.registros.filter(r => Number(r.comprada) > 0 && Number(r.preco) > 0);
-        const precoMedio = compras.length > 0 
-            ? compras.reduce((acc, cur) => acc + Number(cur.preco), 0) / compras.length 
-            : 0;
+        const ultimoPrecoCompra = compras.length > 0 ? Number(compras[compras.length - 1].preco) : 0;
         
         const faltaParaIdeal = Math.max(0, item.quantidade_ideal - item.estoqueEstimado);
-        gastoPrevisto += (faltaParaIdeal * precoMedio);
+        gastoPrevisto += (faltaParaIdeal * ultimoPrecoCompra);
     });
 
     let todasAsDatasRegistros = [];
@@ -123,19 +121,24 @@
 
     const datasUnicas = [...new Set(todasAsDatasRegistros)]
         .sort((a, b) => new Date(b) - new Date(a))
-        .slice(0, 2);
+        .slice(0, 5);
 
     let eventosRecentes = [];
     data.estoque.forEach(item => {
         item.registros.forEach(reg => {
             if (datasUnicas.includes(reg.data)) {
-                eventosRecentes.push({
-                    nome: item.nome,
-                    unidade: item.unidade_medida,
-                    data: reg.data,
-                    comprada: Number(reg.comprada),
-                    encontrada: Number(reg.encontrada)
-                });
+                const ehCompra = Number(reg.comprada) > 0;
+                const ehEstoque = Number(reg.encontrada) !== Number(reg.prevista || 0);
+                
+                if (ehCompra || ehEstoque) {
+                    eventosRecentes.push({
+                        nome: item.nome,
+                        unidade: item.unidade_medida,
+                        data: reg.data,
+                        comprada: Number(reg.comprada),
+                        encontrada: Number(reg.encontrada)
+                    });
+                }
             }
         });
     });
@@ -270,7 +273,7 @@
           <span class="nav-section-title">Conta</span>
           <ul>
             <li class="nav-item">
-              <a href="/" class="nav-link">
+              <a href="/logout" class="nav-link">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
@@ -387,7 +390,7 @@
                         const parseData = (item) => {
                             if (item.previsaoFim === 'Hoje') return new Date();
                             if (item.previsaoFim === 'Atrasado') return new Date(0);
-                            if (!item.previsaoFim || item.previsaoFim === 'Sem previsão') return new Date(8640000000000000);
+                            if (!item.previsaoFim || item.previsaoFim === 'Listo está aprendendo o consumo...') return new Date(8640000000000000);
                             const partes = item.previsaoFim.split('/');
                             return new Date(partes[2], partes[1] - 1, partes[0]);
                         };
@@ -412,8 +415,13 @@
                       <% if (isMuitoCritico) { %> <span style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ff5e62; border-radius: 50%; border: 1px solid white;"></span> <% } %>
                     </div>
                     <div class="activity-content">
-                      <p class="activity-text"><strong><%= item.nome %></strong> acabará em <span class="<%= isMuitoCritico ? 'text-danger' : '' %>" style="font-weight: 600;"><%= item.previsaoFim %></span></p>
-                      <span class="activity-time"><%= item.estoqueEstimado %> de <%= item.quantidade_ideal %> <%= item.unidade_medida %>. (<%= item.percentualAtual %>%)</span>
+                      <% if (item.previsaoFim === 'Listo está aprendendo o consumo...') { %>
+                        <p class="activity-text"><strong><%= item.nome %></strong> está acabando!</p>
+                        <span class="activity-time" style="font-size: 0.8rem; color: var(--text-dim);"><em>Listo ainda não possui dados suficientes para calcular quando acaba</em></span>
+                      <% } else { %>
+                        <p class="activity-text"><strong><%= item.nome %></strong> acabará em <span class="<%= isMuitoCritico ? 'text-danger' : '' %>" style="font-weight: 600;"><%= item.previsaoFim %></span></p>
+                        <span class="activity-time"><%= item.estoqueEstimado %> de <%= item.quantidade_ideal %> <%= item.unidade_medida %>. (<%= item.percentualAtual %>%)</span>
+                      <% } %>
                     </div>
                   </div>
                   <% }) %>
@@ -487,14 +495,18 @@
                 </div>
                 <div class="activity-list">
                   <% listaSugestaoCompra.forEach(item => { 
-                      const qto = Math.max(0, item.quantidade_ideal - item.estoqueEstimado);
+                      let qto = Math.max(0, item.quantidade_ideal - item.estoqueEstimado);
+                      const unidadesInteiras = ['unidade', 'pacote', 'dúzia', 'caixa', 'garrafa', 'lata'];
+                      const exibirQuantidade = unidadesInteiras.includes(item.unidade_medida.toLowerCase()) 
+                          ? Math.ceil(qto)
+                          : qto.toFixed(1);
                   %>
                   <div class="activity-item">
                     <div class="activity-avatar" style="background: var(--glass-border); color: white; display: flex; align-items: center; justify-content: center; padding: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 5v14M5 12h14" />
                       </svg></div>
                     <div class="activity-content">
-                      <p class="activity-text"><strong>Comprar <%= qto.toFixed(1) %> <%= item.unidade_medida %></strong> de <%= item.nome %></p>
+                      <p class="activity-text"><strong>Comprar <%= exibirQuantidade %> <%= item.unidade_medida %></strong> de <%= item.nome %></p>
                       <span class="activity-time"><%= item.percentualAtual %>% em estoque</span>
                     </div>
                   </div>
@@ -511,8 +523,8 @@
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px 5px;">
               <div>
-                <h2 class="page-title" style="margin:0; font-size: 1.5rem; color: var(--dynamic-text);">Resolver</h2>
-                <p class="card-subtitle">Confirme o estoque real ou as compras</p>
+                <h2 class="page-title" style="margin:0; font-size: 1.5rem; color: var(--dynamic-text);">Vamos às compras</h2>
+                <p class="card-subtitle" id="total-compras">Total até o momento: R$ 0,00</p>
               </div>
               <div style="display: flex; gap: 10px;">
                 <button onclick="salvarTudo()" class="card-btn" style="background: var(--emerald); color: white; border: none;">Confirmar</button>
@@ -536,49 +548,52 @@
                 default: svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /></svg>'; gradient = 'linear-gradient(135deg, #667eea, #764ba2)';
             }
             const isMuitoCritico = item.percentualAtual <= 10 || item.previsaoFim === 'Hoje' || item.previsaoFim === 'Atrasado';
+            const comprasComPreco = item.registros.filter(r => Number(r.comprada) > 0 && Number(r.preco) > 0);
+            const ultimoPreco = comprasComPreco.length > 0 ? Number(comprasComPreco[comprasComPreco.length - 1].preco) : 0;
         %>
-                  <div class="activity-item" style="padding: 15px 0; border-bottom: 1px solid var(--glass-border); align-items: center;">
-                    <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px; position: relative; flex-shrink: 0;">
-                      <%- svgIcon %>
-                      <% if (isMuitoCritico) { %> <span style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ff5e62; border-radius: 50%; border: 1px solid white;"></span> <% } %>
-                    </div>
-                    <div class="activity-content" style="flex-grow: 1;">
-                      <p class="activity-text" style="color: var(--dynamic-text);"><strong><%= item.nome %></strong></p>
-                      <span class="activity-time" style="color: var(--dynamic-subtext);">Meta: <%= item.quantidade_ideal %></span>
-                    </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 5px; min-width: 90px;">
-                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
-
-                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          <span style="transform: translateY(-1px);">−</span>
-                        </button>
-
-                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
-                          <%= Math.round(item.estoqueEstimado) %>
-                        </span>
-
-                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          +
-                        </button>
-
+                  <div class="activity-item" data-item-id="<%= item.id %>" data-estoque-previsto="<%= Math.round(item.estoqueEstimado) %>" style="padding: 15px 0; border-bottom: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 10px;">
+                    
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px; position: relative; flex-shrink: 0;">
+                        <%- svgIcon %>
+                        <% if (isMuitoCritico) { %> <span style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ff5e62; border-radius: 50%; border: 1px solid white;"></span> <% } %>
                       </div>
-                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
-
-                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          <span style="transform: translateY(-1px);">−</span>
-                        </button>
-
-                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
-                          0
-                        </span>
-
-                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          +
-                        </button>
-
+                      <div class="activity-content" style="flex-grow: 1;">
+                        <p class="activity-text" style="color: var(--dynamic-text); margin: 0;"><strong><%= item.nome %></strong></p>
+                        <span class="activity-time" style="color: var(--dynamic-subtext); font-size: 0.85rem;">Meta: <%= item.quantidade_ideal %> <%= item.unidade_medida %></span>
                       </div>
                     </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; padding-left: 50px;">
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 0.7rem; color: var(--dynamic-subtext); padding-left: 12px; font-weight: 500;">ENCONTRADO</label>
+                        <div class="pill-input-group" data-type="encontrada" style="display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 4px 10px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                          <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">−</button>
+                          <span class="qty-val" style="color: var(--text-primary); font-size: 1.1rem; font-weight: 500; min-width: 30px; text-align: center;"><%= Math.round(item.estoqueEstimado) %></span>
+                          <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">+</button>
+                          <span style="color: var(--dynamic-subtext); font-size: 0.8rem; margin-left: 2px;"><%= item.unidade_medida %></span>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 0.7rem; color: var(--dynamic-subtext); padding-left: 12px; font-weight: 500;">COMPRADO</label>
+                        <div class="pill-input-group" data-type="comprada" style="display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 4px 10px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                          <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">−</button>
+                          <span class="qty-val" style="color: var(--text-primary); font-size: 1.1rem; font-weight: 500; min-width: 30px; text-align: center;">0</span>
+                          <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">+</button>
+                          <span style="color: var(--dynamic-subtext); font-size: 0.8rem; margin-left: 2px;"><%= item.unidade_medida %></span>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 0.7rem; color: var(--dynamic-subtext); padding-left: 12px; font-weight: 500;">PREÇO</label>
+                        <div class="pill-input-group" data-type="preco" style="display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 4px 10px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                          <span style="color: var(--dynamic-subtext); font-size: 0.85rem;">R$</span>
+                          <input type="number" class="price-input" value="<%= ultimoPreco.toFixed(2) %>" step="0.01" min="0" oninput="atualizarTotal()" style="background: none; border: none; color: var(--text-primary); font-size: 1rem; font-weight: 500; width: 55px; text-align: center; outline: none;">
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                   <% }) %>
                 </div>
@@ -602,48 +617,51 @@
                   case 'Limpeza': svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v4M14 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /></svg>'; gradient = 'linear-gradient(135deg, #43e97b, #38f9d7)'; break;
                   default: svgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /></svg>'; gradient = 'linear-gradient(135deg, #667eea, #764ba2)';
               }
+              const comprasComPreco = item.registros.filter(r => Number(r.comprada) > 0 && Number(r.preco) > 0);
+              const ultimoPreco = comprasComPreco.length > 0 ? Number(comprasComPreco[comprasComPreco.length - 1].preco) : 0;
         %>
-                  <div class="activity-item" style="padding: 15px 0; border-bottom: 1px solid var(--glass-border); align-items: center;">
-                    <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px; flex-shrink: 0;">
-                      <%- svgIcon %>
-                    </div>
-                    <div class="activity-content" style="flex-grow: 1;">
-                      <p class="activity-text" style="color: var(--dynamic-text);"><strong><%= item.nome %></strong></p>
-                      <span class="activity-time" style="color: var(--dynamic-subtext);">Tem: <%= Math.round(item.estoqueEstimado) %></span>
-                    </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 5px; min-width: 90px;">
-                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
-
-                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          <span style="transform: translateY(-1px);">−</span>
-                        </button>
-
-                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
-                          <%= Math.round(item.estoqueEstimado) %>
-                        </span>
-
-                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          +
-                        </button>
-
+                  <div class="activity-item" data-item-id="<%= item.id %>" data-estoque-previsto="<%= Math.round(item.estoqueEstimado) %>" style="padding: 15px 0; border-bottom: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 10px;">
+                    
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="activity-avatar" style="background: <%= gradient %>; color: white; display: flex; align-items: center; justify-content: center; padding: 8px; flex-shrink: 0;">
+                        <%- svgIcon %>
                       </div>
-                      <div class="pill-input-group" style="display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 4px 12px; border-radius: 40px; border: 1px solid var(--glass-border); width: fit-content;">
-
-                        <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          <span style="transform: translateY(-1px);">−</span>
-                        </button>
-
-                        <span class="qty-val" style="color: var(--text-primary); font-size: 1.3rem; font-weight: 500; min-width: 35px; text-align: center; letter-spacing: -1px;">
-                          0
-                        </span>
-
-                        <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.2rem; font-weight: 100; cursor: pointer; padding: 0 5px; transition: var(--transition-fast); line-height: 1; display: flex; align-items: center;">
-                          +
-                        </button>
-
+                      <div class="activity-content" style="flex-grow: 1;">
+                        <p class="activity-text" style="color: var(--dynamic-text); margin: 0;"><strong><%= item.nome %></strong></p>
+                        <span class="activity-time" style="color: var(--dynamic-subtext); font-size: 0.85rem;">Tem: <%= Math.round(item.estoqueEstimado) %> <%= item.unidade_medida %></span>
                       </div>
                     </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; padding-left: 50px;">
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 0.7rem; color: var(--dynamic-subtext); padding-left: 12px; font-weight: 500;">ENCONTRADO</label>
+                        <div class="pill-input-group" data-type="encontrada" style="display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 4px 10px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                          <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">−</button>
+                          <span class="qty-val" style="color: var(--text-primary); font-size: 1.1rem; font-weight: 500; min-width: 30px; text-align: center;"><%= Math.round(item.estoqueEstimado) %></span>
+                          <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">+</button>
+                          <span style="color: var(--dynamic-subtext); font-size: 0.8rem; margin-left: 2px;"><%= item.unidade_medida %></span>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 0.7rem; color: var(--dynamic-subtext); padding-left: 12px; font-weight: 500;">COMPRADO</label>
+                        <div class="pill-input-group" data-type="comprada" style="display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 4px 10px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                          <button onclick="changeQty(this, -1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">−</button>
+                          <span class="qty-val" style="color: var(--text-primary); font-size: 1.1rem; font-weight: 500; min-width: 30px; text-align: center;">0</span>
+                          <button onclick="changeQty(this, 1)" style="background: none; border: none; color: var(--emerald); font-size: 1.1rem; cursor: pointer; padding: 0 3px; line-height: 1;">+</button>
+                          <span style="color: var(--dynamic-subtext); font-size: 0.8rem; margin-left: 2px;"><%= item.unidade_medida %></span>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 0.7rem; color: var(--dynamic-subtext); padding-left: 12px; font-weight: 500;">PREÇO</label>
+                        <div class="pill-input-group" data-type="preco" style="display: flex; align-items: center; gap: 8px; background: var(--glass-bg); padding: 4px 10px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                          <span style="color: var(--dynamic-subtext); font-size: 0.85rem;">R$</span>
+                          <input type="number" class="price-input" value="<%= ultimoPreco.toFixed(2) %>" step="0.01" min="0" oninput="atualizarTotal()" style="background: none; border: none; color: var(--text-primary); font-size: 1rem; font-weight: 500; width: 55px; text-align: center; outline: none;">
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                   <% }) %>
                 </div>
@@ -662,6 +680,7 @@
                 <p class="card-subtitle">Consulta rápida de todos os itens</p>
               </div>
               <div style="display: flex; gap: 10px;">
+                <button onclick="abrirModalAdicionarItem()" class="card-btn" style="background: var(--emerald); color: white; border: none;">Adicionar Item</button>
                 <button onclick="toggleInventoryView(false)" class="card-btn" style="border-color: var(--coral); color: var(--coral); background: none;">Sair</button>
               </div>
             </div>
@@ -716,26 +735,30 @@
                           </span>
                         </div>
 
-                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
+                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 4px;">
                           <div class="progress-fill" style="width: <%= item.percentualAtual %>%; background: <%= statusColor %>; height: 100%; transition: width 0.5s ease;"></div>
                         </div>
+                        
+                        <p class="activity-time" style="margin: 0; font-size: 0.75rem; color: var(--text-dim);">
+                          Previsão: <%= item.previsaoFim %>
+                        </p>
                       </div>
                     </div>
 
                     <div class="item-actions" style="display: flex; gap: 12px; margin-left: 20px; border-left: 1px solid rgba(0,0,0,0.05); padding-left: 15px;">
-                      <a href="/estoque/editar/<%= item.id %>" title="Editar" style="color: var(--text-dim); transition: all 0.2s;">
+                      <button onclick="abrirModalEditarItem(<%= item.id %>)" title="Editar" style="background: none; border: none; color: var(--text-dim); transition: all 0.2s; cursor: pointer; padding: 5px;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path>
                         </svg>
-                      </a>
+                      </button>
 
-                      <a href="/estoque/deletar/<%= item.id %>" title="Excluir" onclick="return confirm('Excluir <%= item.nome %>?')" style="color: #ff5e62; opacity: 0.6; transition: all 0.2s;">
+                      <button onclick="excluirItem(<%= item.id %>, '<%= item.nome %>')" title="Excluir" style="background: none; border: none; color: #ff5e62; opacity: 0.6; transition: all 0.2s; cursor: pointer; padding: 5px;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
-                      </a>
+                      </button>
                     </div>
                   </div>
 
@@ -778,20 +801,23 @@
                             <%= item.estoqueEstimado %> <span style="font-weight: 400; color: var(--text-dim);">/ <%= item.quantidade_ideal %> <%= item.unidade_medida %></span>
                           </span>
                         </div>
-                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
+                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 4px;">
                           <div class="progress-fill" style="width: <%= item.percentualAtual %>%; background: <%= statusColor %>; height: 100%; transition: width 0.5s ease;"></div>
                         </div>
+                        <p class="activity-time" style="margin: 0; font-size: 0.75rem; color: var(--text-dim);">
+                          Previsão: <%= item.previsaoFim %>
+                        </p>
                       </div>
                     </div>
                     <div class="item-actions" style="display: flex; gap: 12px; margin-left: 20px; border-left: 1px solid rgba(0,0,0,0.05); padding-left: 15px;">
-                      <a href="/estoque/editar/<%= item.id %>" style="color: var(--text-dim);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <button onclick="abrirModalEditarItem(<%= item.id %>)" title="Editar" style="background: none; border: none; color: var(--text-dim); transition: all 0.2s; cursor: pointer; padding: 5px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path>
-                        </svg></a>
-                      <a href="/estoque/deletar/<%= item.id %>" onclick="return confirm('Excluir <%= item.nome %>?')" style="color: #ff5e62; opacity: 0.6;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        </svg></button>
+                      <button onclick="excluirItem(<%= item.id %>, '<%= item.nome %>')" title="Excluir" style="background: none; border: none; color: #ff5e62; opacity: 0.6; transition: all 0.2s; cursor: pointer; padding: 5px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg></a>
+                        </svg></button>
                     </div>
                   </div>
                   <% }) %>
@@ -834,20 +860,23 @@
                             <%= item.estoqueEstimado %> <span style="font-weight: 400; color: var(--text-dim);">/ <%= item.quantidade_ideal %> <%= item.unidade_medida %></span>
                           </span>
                         </div>
-                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
+                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 4px;">
                           <div class="progress-fill" style="width: <%= item.percentualAtual %>%; background: <%= statusColor %>; height: 100%; transition: width 0.5s ease;"></div>
                         </div>
+                        <p class="activity-time" style="margin: 0; font-size: 0.75rem; color: var(--text-dim);">
+                          Previsão: <%= item.previsaoFim %>
+                        </p>
                       </div>
                     </div>
                     <div class="item-actions" style="display: flex; gap: 12px; margin-left: 20px; border-left: 1px solid rgba(0,0,0,0.05); padding-left: 15px;">
-                      <a href="/estoque/editar/<%= item.id %>" style="color: var(--text-dim);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <button onclick="abrirModalEditarItem(<%= item.id %>)" title="Editar" style="background: none; border: none; color: var(--text-dim); transition: all 0.2s; cursor: pointer; padding: 5px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path>
-                        </svg></a>
-                      <a href="/estoque/deletar/<%= item.id %>" onclick="return confirm('Excluir <%= item.nome %>?')" style="color: #ff5e62; opacity: 0.6;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        </svg></button>
+                      <button onclick="excluirItem(<%= item.id %>, '<%= item.nome %>')" title="Excluir" style="background: none; border: none; color: #ff5e62; opacity: 0.6; transition: all 0.2s; cursor: pointer; padding: 5px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg></a>
+                        </svg></button>
                     </div>
                   </div>
                   <% }) %>
@@ -890,20 +919,23 @@
                             <%= item.estoqueEstimado %> <span style="font-weight: 400; color: var(--text-dim);">/ <%= item.quantidade_ideal %> <%= item.unidade_medida %></span>
                           </span>
                         </div>
-                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
+                        <div class="progress-bar" style="height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 4px;">
                           <div class="progress-fill" style="width: <%= item.percentualAtual %>%; background: <%= statusColor %>; height: 100%; transition: width 0.5s ease;"></div>
                         </div>
+                        <p class="activity-time" style="margin: 0; font-size: 0.75rem; color: var(--text-dim);">
+                          Previsão: <%= item.previsaoFim %>
+                        </p>
                       </div>
                     </div>
                     <div class="item-actions" style="display: flex; gap: 12px; margin-left: 20px; border-left: 1px solid rgba(0,0,0,0.05); padding-left: 15px;">
-                      <a href="/estoque/editar/<%= item.id %>" style="color: var(--text-dim);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <button onclick="abrirModalEditarItem(<%= item.id %>)" title="Editar" style="background: none; border: none; color: var(--text-dim); transition: all 0.2s; cursor: pointer; padding: 5px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path>
-                        </svg></a>
-                      <a href="/estoque/deletar/<%= item.id %>" onclick="return confirm('Excluir <%= item.nome %>?')" style="color: #ff5e62; opacity: 0.6;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        </svg></button>
+                      <button onclick="excluirItem(<%= item.id %>, '<%= item.nome %>')" title="Excluir" style="background: none; border: none; color: #ff5e62; opacity: 0.6; transition: all 0.2s; cursor: pointer; padding: 5px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg></a>
+                        </svg></button>
                     </div>
                   </div>
                   <% }) %>
@@ -1035,30 +1067,114 @@
       }
     }
 
-    function changeQty(btn, delta) {
-      const span = btn.parentElement.querySelector('.qty-val');
-      let val = parseInt(span.innerText) || 0;
-      if (val + delta >= 0) span.innerText = val + delta;
+    function abrirModalAdicionarItem() {
+      const modal = document.getElementById('modal-item');
+      if (!modal) {
+        console.error('Modal não encontrado');
+        return;
+      }
+      document.getElementById('modal-title').textContent = 'Adicionar Novo Item';
+      document.getElementById('item-form').reset();
+      document.getElementById('item-id').value = '';
+      modal.style.display = 'flex';
     }
+
+    function abrirModalEditarItem(itemId) {
+      fetch(`/api/item/${itemId}`)
+        .then(res => res.json())
+        .then(item => {
+          document.getElementById('modal-title').textContent = 'Editar Item';
+          document.getElementById('item-id').value = item.id;
+          document.getElementById('item-nome').value = item.nome;
+          document.getElementById('item-categoria').value = item.categoria;
+          document.getElementById('item-unidade').value = item.unidade_medida;
+          document.getElementById('item-quantidade-ideal').value = item.quantidade_ideal;
+          document.getElementById('item-percentual-alerta').value = item.percentual_alerta;
+          document.getElementById('item-prioridade').value = item.prioridade;
+          document.getElementById('item-consumo-mensuravel').checked = item.consumo_mensuravel;
+          document.getElementById('modal-item').style.display = 'flex';
+        })
+        .catch(err => {
+          console.error('Erro ao carregar item:', err);
+          alert('Erro ao carregar dados do item');
+        });
+    }
+
+    function fecharModalItem() {
+      document.getElementById('modal-item').style.display = 'none';
+    }
+
+    function salvarItem() {
+      const itemId = document.getElementById('item-id').value;
+      const formData = {
+        nome: document.getElementById('item-nome').value,
+        categoria: document.getElementById('item-categoria').value,
+        unidade_medida: document.getElementById('item-unidade').value,
+        quantidade_ideal: parseFloat(document.getElementById('item-quantidade-ideal').value),
+        percentual_alerta: parseFloat(document.getElementById('item-percentual-alerta').value),
+        prioridade: parseInt(document.getElementById('item-prioridade').value),
+        consumo_mensuravel: document.getElementById('item-consumo-mensuravel').checked
+      };
+
+      const url = itemId ? `/api/item/${itemId}` : '/api/item';
+      const method = itemId ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(itemId ? 'Item atualizado com sucesso!' : 'Item adicionado com sucesso!');
+          window.location.reload();
+        } else {
+          alert('Erro: ' + data.message);
+        }
+      })
+      .catch(err => {
+        console.error('Erro:', err);
+        alert('Erro ao salvar item');
+      });
+    }
+
+    function excluirItem(itemId, nomeItem) {
+      if (!confirm(`Tem certeza que deseja excluir "${nomeItem}"?\n\nEsta ação não pode ser desfeita e todos os registros relacionados serão perdidos.`)) {
+        return;
+      }
+
+      fetch(`/api/item/${itemId}`, {
+        method: 'DELETE'
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert('Item excluído com sucesso!');
+          window.location.reload();
+        } else {
+          alert('Erro ao excluir: ' + data.message);
+        }
+      })
+      .catch(err => {
+        console.error('Erro:', err);
+        alert('Erro ao excluir item');
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-      // Seleciona todos os links dentro da sidebar
       const menuLinks = document.querySelectorAll('.sidebar .nav-link');
 
       menuLinks.forEach(link => {
         link.addEventListener('click', () => {
-          // Verifica se estamos no modo mobile (ajuste os 991px se necessário)
           if (window.innerWidth <= 991) {
-            // Remove a classe do elemento que controla a abertura
-            // Geralmente o template adiciona essa classe no body ou na própria aside
             document.body.classList.remove('sidebar-open');
 
-            // Caso a classe esteja no ID sidebar, removemos de lá também por segurança
             const sidebar = document.getElementById('sidebar');
             if (sidebar) {
               sidebar.classList.remove('sidebar-open');
             }
 
-            // Se houver um overlay/fundo escuro clicável, removemos a visibilidade dele
             const overlay = document.querySelector('.sidebar-overlay');
             if (overlay) {
               overlay.classList.remove('show');
@@ -1067,32 +1183,103 @@
         });
       });
     });
-    // Seleciona todos os links do menu
-    const navLinks = document.querySelectorAll('.nav-link');
 
-    // Seleciona o elemento que contém a classe de abertura
-    // (Ajustei para procurar no body ou no aside, que é o padrão)
+    const navLinks = document.querySelectorAll('.nav-link');
     const sidebarElement = document.querySelector('.sidebar, aside, body');
 
     navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      // Só executa se estiver em telas menores (Mobile/Tablet)
-      if (window.innerWidth <= 991) {
-        // Remove a classe que você identificou
-        if (sidebarElement.classList.contains('sidebar-open')) {
-          sidebarElement.classList.remove('sidebar-open');
-        }
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 991) {
+          if (sidebarElement.classList.contains('sidebar-open')) {
+            sidebarElement.classList.remove('sidebar-open');
+          }
 
-        // Caso o seu template use um overlay (fundo escuro) que precise sumir:
-        const overlay = document.querySelector('.sidebar-overlay');
-        if (overlay) {
-          overlay.classList.remove('active');
+          const overlay = document.querySelector('.sidebar-overlay');
+          if (overlay) {
+            overlay.classList.remove('active');
+          }
         }
-      }
-    });
-    });
+      });
     });
   </script>
+
+  <!-- Modal para Adicionar/Editar Item -->
+  <div id="modal-item" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="glass-card" style="width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h2 id="modal-title" style="margin: 0; font-size: 1.5rem; color: var(--dynamic-text);">Adicionar Novo Item</h2>
+        <button onclick="fecharModalItem()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-dim);">&times;</button>
+      </div>
+
+      <form id="item-form" onsubmit="event.preventDefault(); salvarItem();">
+        <input type="hidden" id="item-id">
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dynamic-text);">Nome do Item*</label>
+          <input type="text" id="item-nome" required style="width: 100%; padding: 12px; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); color: var(--text-primary); font-size: 1rem;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dynamic-text);">Categoria*</label>
+            <select id="item-categoria" required style="width: 100%; padding: 12px; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); color: var(--text-primary); font-size: 1rem;">
+              <option value="Alimentos">Alimentos</option>
+              <option value="Higiene">Higiene</option>
+              <option value="Limpeza">Limpeza</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dynamic-text);">Unidade de Medida*</label>
+            <select id="item-unidade" required style="width: 100%; padding: 12px; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); color: var(--text-primary); font-size: 1rem;">
+              <option value="kg">kg (quilograma)</option>
+              <option value="g">g (gramas)</option>
+              <option value="L">L (litro)</option>
+              <option value="ml">ml (mililitro)</option>
+              <option value="unidade">unidade</option>
+              <option value="pacote">pacote</option>
+              <option value="dúzia">dúzia</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dynamic-text);">Quantidade Ideal*</label>
+            <input type="number" id="item-quantidade-ideal" step="0.01" required style="width: 100%; padding: 12px; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); color: var(--text-primary); font-size: 1rem;">
+          </div>
+
+          <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dynamic-text);">Alerta (%)*</label>
+            <input type="number" id="item-percentual-alerta" min="0" max="100" required style="width: 100%; padding: 12px; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); color: var(--text-primary); font-size: 1rem;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--dynamic-text);">Prioridade*</label>
+          <select id="item-prioridade" required style="width: 100%; padding: 12px; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg); color: var(--text-primary); font-size: 1rem;">
+            <option value="1">Baixa</option>
+            <option value="2" selected>Média</option>
+            <option value="3">Alta</option>
+            <option value="4">Crítica</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input type="checkbox" id="item-consumo-mensuravel" checked style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+            <span style="font-weight: 600; color: var(--dynamic-text);">Consumo Mensurável</span>
+          </label>
+          <small style="color: var(--text-dim); margin-left: 28px; display: block; margin-top: 5px;">Desmarque se o item não tiver consumo gradual (ex: produtos que expiram)</small>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" onclick="fecharModalItem()" class="card-btn" style="background: none; border: 1px solid var(--glass-border); color: var(--text-dim);">Cancelar</button>
+          <button type="submit" class="card-btn" style="background: var(--emerald); color: white; border: none;">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
 
 </body>

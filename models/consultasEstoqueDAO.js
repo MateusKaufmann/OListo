@@ -90,7 +90,7 @@ module.exports = class consultasEstoqueDAO {
                 // 2️⃣ ESTOQUE ESTIMADO
                 // ============================
                 let estoqueEstimado = 0;
-                let previsaoFim = "Sem previsão";
+                let previsaoFim = item.consumo_mensuravel ? "Listo está aprendendo o consumo..." : "—";
                 let ultimaDeclaracao = "Nenhum registro";
 
                 if (item.registros.length > 0) {
@@ -107,7 +107,7 @@ module.exports = class consultasEstoqueDAO {
 
                     if (estoqueEstimado < 0) estoqueEstimado = 0;
 
-                    if (consumoMedio > 0 && estoqueEstimado > 0) {
+                    if (consumoMedio > 0 && estoqueEstimado > 0 && item.consumo_mensuravel) {
                         const diasRestantes = estoqueEstimado / consumoMedio;
                         const dFim = new Date();
                         dFim.setDate(dFim.getDate() + Math.ceil(diasRestantes));
